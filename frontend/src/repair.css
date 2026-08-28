@@ -1,0 +1,35 @@
+button,input,select,textarea{font:inherit}
+textarea{resize:vertical}
+nav a,.footer-links a,.demo-banner a{display:inline-flex;align-items:center;min-height:44px;padding-inline:5px}
+.text-button{min-height:44px;padding:8px 4px}
+.track button,.receipt-form input,.receipt-form select,.price-actions input{min-height:44px}
+.publish-panel,.start-grid form{margin:0 0 30px;padding:24px;border:2px solid var(--ink);background:var(--surface);box-shadow:var(--shadow)}
+.panel-title{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.panel-title h2,.start-grid h2{font-size:28px}
+.publish-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.publish-form label,.start-grid label{display:grid;align-content:start;gap:5px;font-weight:800}
+.publish-form input,.publish-form textarea,.start-grid input{width:100%;min-height:44px;padding:9px;border:2px solid var(--ink);background:#fffdf5}
+.publish-form small{font-weight:400;color:var(--muted)}
+.wide{grid-column:1/-1}
+.start-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:28px}
+.start-grid form{display:grid;gap:18px;margin-bottom:0}
+.onboarding>p{max-width:650px;font-size:18px}
+.key-warning{padding:14px;border-left:5px solid var(--sun);background:var(--surface)}
+.package-content{margin:22px 0;padding:20px;border:2px solid var(--line);background:#fffdf5}
+.package-content h3{font-size:23px}
+.package-content h4{margin-bottom:6px;font:700 17px var(--sans)}
+.package-content ul{margin-top:0}
+.approval-record{display:grid;gap:5px;margin:20px 0;padding:18px;border-left:6px solid var(--sun);background:var(--paper-deep)}
+.approval-record form{display:flex;align-items:end;gap:12px;margin-top:12px}
+.approval-record label{display:grid;gap:4px;font-weight:800}
+.approval-record input{min-height:44px;padding:8px;border:2px solid var(--ink)}
+.install-row{display:flex;align-items:center;gap:14px;margin-top:22px}
+.install-row span{max-width:330px;color:var(--muted);font-size:13px}
+@media (max-width:720px){
+  .publish-form,.start-grid{grid-template-columns:1fr}
+  .wide{grid-column:auto}
+  .track{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:visible;padding:0}
+  .track span{display:none}
+  .track button{width:100%}
+  .approval-record form,.install-row{align-items:stretch;flex-direction:column}
+}

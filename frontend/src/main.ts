@@ -1,97 +1,191 @@
 import './styles.css';
+import './repair.css';
 import { Receipt, Ring, Skill, sampleReceipts, sampleSkills, titleFor } from './data';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
-const demoKey = 'demo:team-agent-skills:v1';
+const demoKey = 'demo:team-agent-skills:v2';
+const tokenKey = 'team-agent-skills:workspace-key';
 let notice = '';
 let skills: Skill[] = [];
 let receipts: Receipt[] = [];
+let selectedId = '';
+let publishOpen = false;
 
-const returnedLicense = new URLSearchParams(location.search).get('license');
-if (returnedLicense) {
-  localStorage.setItem('sb_license:team-agent-skills', returnedLicense);
-  const url = new URL(location.href); url.searchParams.delete('license'); history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+function esc(value: string) {
+  return value.replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]!));
 }
-
-function esc(value: string) { return value.replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]!)); }
-function isDemo() { return location.pathname === '/demo' || location.search.includes('demo=1'); }
+function isDemo() { return location.pathname === '/demo' || new URLSearchParams(location.search).get('demo') === '1'; }
+function token() { return localStorage.getItem(tokenKey) || ''; }
 function getDemoData() {
   const saved = localStorage.getItem(demoKey);
-  if (saved) return JSON.parse(saved) as { skills: Skill[]; receipts: Receipt[] };
-  const data = { skills: structuredClone(sampleSkills), receipts: structuredClone(sampleReceipts) };
+  if (saved) return JSON.parse(saved) as {skills:Skill[];receipts:Receipt[]};
+  const data = {skills:structuredClone(sampleSkills),receipts:structuredClone(sampleReceipts)};
   localStorage.setItem(demoKey, JSON.stringify(data));
   return data;
 }
-function saveDemo() { localStorage.setItem(demoKey, JSON.stringify({ skills, receipts })); }
+function saveDemo() { localStorage.setItem(demoKey, JSON.stringify({skills,receipts})); }
+async function api(path:string, init:RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (token()) headers.set('authorization', `Bearer ${token()}`);
+  if (init.body) headers.set('content-type','application/json');
+  const response = await fetch(path, {...init,headers});
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({error:'The request failed.'})) as {error?:string};
+    throw new Error(body.error || 'The request failed.');
+  }
+  return response;
+}
 async function loadData() {
-  if (isDemo()) { ({ skills, receipts } = getDemoData()); return; }
-  // The marketing and legal routes are useful without a running registry.
-  // Loading the API there produced browser-console errors on an otherwise
-  // healthy first visit, so only the workspace requests server data.
-  if (location.pathname !== '/registry') { skills = []; receipts = []; return; }
+  notice = '';
+  if (isDemo()) { ({skills,receipts}=getDemoData()); selectedId ||= skills[0]?.id || ''; return; }
+  if (location.pathname !== '/registry' || !token()) { skills=[]; receipts=[]; selectedId=''; return; }
   try {
-    const [skillResponse, receiptResponse] = await Promise.all([fetch('/api/skills'), fetch('/api/receipts')]);
-    if (!skillResponse.ok || !receiptResponse.ok) throw new Error('The registry could not load.');
-    skills = await skillResponse.json(); receipts = await receiptResponse.json();
-  } catch { skills = []; receipts = []; notice = 'The registry is offline. Try again when this server is reachable.'; }
+    const [skillResponse,receiptResponse] = await Promise.all([api('/api/skills'),api('/api/receipts')]);
+    skills=await skillResponse.json(); receipts=await receiptResponse.json();
+    if (!skills.some(skill => skill.id === selectedId)) selectedId=skills[0]?.id || '';
+  } catch (error) { skills=[]; receipts=[]; notice=message(error); }
 }
-function link(path: string, label: string, cls = '') { return `<a class="${cls}" href="${path}" data-route>${label}</a>`; }
+function message(error:unknown) { return error instanceof Error ? error.message : 'The request failed. Try again.'; }
+function link(path:string,label:string,cls='') { return `<a class="${cls}" href="${path}" data-route>${label}</a>`; }
 function header() {
-  return `<header class="site-header"><a class="wordmark" href="/" data-route aria-label="Team Skills Registry home"><span class="mark">▰</span>Team Skills<br><em>Registry</em></a><nav aria-label="Main navigation">${link('/demo','Demo')}${link('/registry','Registry')}${link('/privacy','Privacy')}</nav></header>`;
+  return `<header class="site-header"><a class="wordmark" href="/" data-route aria-label="Team Skills Registry home"><span class="mark" aria-hidden="true">▰</span>Team Skills<br><em>Registry</em></a><nav aria-label="Main navigation">${link('/demo','Demo')}${link('/registry','Registry')}${link('/privacy','Privacy')}</nav></header>`;
 }
-function footer() { return `<footer><div><strong>Team Skills Registry</strong><p>Reviewed instructions for coding agents.</p></div><div class="footer-links">${link('/privacy','Privacy')}${link('/terms','Terms')}<span>Built by Param Factory</span><span>v1.0.0</span></div></footer>`; }
+function footer() {
+  return `<footer><div><strong>Team Skills Registry</strong><p>Reviewed instructions for coding agents.</p></div><div class="footer-links">${link('/privacy','Privacy')}${link('/terms','Terms')}<span>Built by Param Factory</span><span>v1.1.0</span></div></footer>`;
+}
 function demoBanner() {
   return `<aside class="demo-banner" aria-label="Demo mode"><span><b>Demo</b> — sample data, nothing is saved</span><div><button class="text-button" data-reset-demo>Reset demo</button><a href="/registry" data-route>Start for real</a></div></aside>`;
 }
-function chips(items: string[]) { return `<span class="chips">${items.map(x => `<span>${esc(x)}</span>`).join('')}</span>`; }
-function skillCard(skill: Skill, selected = false) {
-  return `<button class="skill-card ${selected ? 'selected' : ''}" data-skill="${esc(skill.id)}"><span class="ring ${skill.ring}">${skill.ring === 'all' ? 'Released' : skill.ring}</span><strong>${esc(skill.name)}</strong><small>v${esc(skill.version)} · ${esc(skill.owner)}</small><p>${esc(skill.summary)}</p>${chips(skill.targets)}</button>`;
-}
-function receiptRow(receipt: Receipt) { return `<tr><td><strong>${esc(receipt.skill)}</strong><br><small>v${esc(receipt.version)}</small></td><td>${esc(receipt.repository)}</td><td>${esc(receipt.agent)}</td><td>${esc(receipt.at)}</td><td><span class="recorded">● ${esc(receipt.status)}</span></td></tr>`; }
-
+function chips(items:string[]) { return `<span class="chips">${items.map(x=>`<span>${esc(x)}</span>`).join('')}</span>`; }
 function landing() {
-  return `<main id="main" tabindex="-1"><section class="hero"><div class="hero-copy"><p class="eyebrow">A controlled release desk</p><h1>Release reviewed skills across repositories</h1><p class="lede">For engineering leads who need one checked instruction set for every coding agent.</p><div class="hero-actions">${link('/demo','Try it with sample data','button primary')}<span>Open a working registry with three reviewed skills.</span></div><ul class="facts"><li>Sample data stays in this browser.</li><li>Every run records a version receipt.</li><li>Private registries cost $149 per team/month.</li></ul></div><figure class="hero-art"><img src="/release-desk.webp" width="1200" height="800" fetchpriority="high" alt="A paper-cut release desk routes a skill packet through an approval stamp into repository drawers."><figcaption>Original generated artwork. Packets move only after review.</figcaption></figure></section><section class="preview-section" aria-labelledby="preview-title"><div class="section-heading"><p class="eyebrow">Live registry preview</p><h2 id="preview-title">See the approval trail before an agent runs</h2></div><div class="diorama-preview"><div class="packet-stack"><div class="paper-label">skill.yaml</div><strong>Secure commit</strong><span>v2.4.0</span><span class="stamp">APPROVED</span></div><div class="approval-path"><span>Review</span><i></i><span>pilot</span><i></i><span>all repositories</span></div><div class="receipt-paper"><small>Execution receipt</small><strong>rcpt-7F3A</strong><span>atlas-api · Codex</span><span>Secure commit v2.4.0</span></div></div></section><section class="steps" aria-labelledby="steps-title"><div class="section-heading"><p class="eyebrow">A short release path</p><h2 id="steps-title">Publish, approve, then prove what ran</h2></div><ol><li><b>1</b><h3>Write a skill packet</h3><p>Keep instructions, adapters, and secret references together.</p></li><li><b>2</b><h3>Choose a release ring</h3><p>Send a version to review, a pilot, or every repository.</p></li><li><b>3</b><h3>Read the receipt</h3><p>See the exact version, repository, agent, and time.</p></li></ol></section><section class="plain-panel"><div><p class="eyebrow">Limits and privacy</p><h2>Instructions are treated as untrusted code</h2></div><p>Skills name secret references. They never hold secret text. This v1 does not execute code or host models.</p></section><section class="pricing" aria-labelledby="price-title"><div><p class="eyebrow">Governed private registry</p><h2 id="price-title">$149 per team/month</h2><p>Private registries, approval rings, and audit history for the team.</p></div><div class="price-actions"><a class="button primary" href="https://api.sociobot.in/api/v1/products/team-agent-skills/checkout">Buy the team plan</a><label>Have a license?<input data-license placeholder="Paste a license token"></label><button class="text-button" data-restore-license>Restore license</button></div></section></main>`;
+  return `<main id="main" tabindex="-1"><section class="hero"><div class="hero-copy"><p class="eyebrow">Team skill releases</p><h1>Release reviewed skills across repositories</h1><p class="lede">For engineering leads who need one checked instruction set for every coding agent.</p><div class="hero-actions">${link('/demo','Try it with sample data','button primary')}<span>Open three complete skill packages and their review records.</span></div><ul class="facts"><li>Sample data stays in this browser.</li><li>Receipts preserve the exact package version.</li><li>Real workspaces use a private access key.</li></ul></div><figure class="hero-art"><img src="/release-desk.webp" width="1200" height="800" fetchpriority="high" alt="A paper-cut release desk routes a skill packet through an approval stamp into repository drawers."><figcaption>Original generated artwork showing the release workflow.</figcaption></figure></section>
+  <section class="preview-section" aria-labelledby="preview-title"><div class="section-heading"><p class="eyebrow">Package preview</p><h2 id="preview-title">Check the package before an agent installs it</h2></div><div class="diorama-preview"><div class="packet-stack"><div class="paper-label">skill.yaml</div><strong>Secure commit</strong><span>v2.4.0</span><span class="stamp">APPROVED</span></div><div class="approval-path"><span>Review</span><i></i><span>Pilot</span><i></i><span>Assigned repositories</span></div><div class="receipt-paper"><small>Execution receipt</small><strong>rcpt-7F3A</strong><span>atlas-api · Codex</span><span>Secure commit v2.4.0</span></div></div></section>
+  <section class="steps" aria-labelledby="steps-title"><div class="section-heading"><p class="eyebrow">Release path</p><h2 id="steps-title">Publish, approve, then install</h2></div><ol><li><b>1</b><h3>Publish an exact version</h3><p>Add instructions, adapter content, a Git commit, and repository assignments.</p></li><li><b>2</b><h3>Record a review</h3><p>Name the reviewer before the version enters pilot or full release.</p></li><li><b>3</b><h3>Install and record</h3><p>Agents fetch one assigned package and save an immutable receipt.</p></li></ol></section>
+  <section class="plain-panel"><div><p class="eyebrow">Limits and privacy</p><h2>Keep credentials out of instructions</h2></div><p>The secret reference field accepts uppercase names such as GITHUB_TOKEN. The API rejects other formats.</p></section></main>`;
 }
-
-function registryPage(demo: boolean) {
-  const first = skills[0];
-  return `<main id="main" tabindex="-1" class="workspace"><div class="workspace-title"><div><p class="eyebrow">${demo ? 'Sandbox workspace' : 'Your workspace'}</p><h1>Review skill releases in one place</h1><p>Choose a skill to inspect its release ring and execution receipts.</p></div><button class="button primary" data-new-skill>Publish a skill</button></div>${notice ? `<p class="notice" role="status">${esc(notice)}</p>` : ''}<div class="workspace-grid"><aside class="skill-list" aria-label="Skill packages"><div class="list-heading"><h2>Skill packets</h2><span>${skills.length}</span></div>${skills.length ? skills.map((skill, index) => skillCard(skill, index === 0)).join('') : `<div class="empty"><h2>No skill packets yet</h2><p>Publish the first packet to start a review trail.</p><button class="button" data-new-skill>Publish a skill</button></div>`}</aside><section class="detail-panel" aria-live="polite">${first ? detail(first) : `<div class="empty"><h2>The selected packet appears here</h2><p>Select a packet after you publish it.</p></div>`}</section></div><section class="receipts" aria-labelledby="receipts-title"><div class="section-heading"><p class="eyebrow">Execution history</p><h2 id="receipts-title">Receipts name the exact released version</h2></div>${receipts.length ? `<div class="table-wrap" tabindex="0" role="region" aria-label="Execution receipts table"><table><thead><tr><th>Skill version</th><th>Repository</th><th>Agent</th><th>Recorded</th><th>State</th></tr></thead><tbody>${receipts.map(receiptRow).join('')}</tbody></table></div>` : `<div class="empty"><p>Receipts appear when an agent reports a governed run.</p></div>`}</section></main>`;
+function workspaceStart() {
+  return `<main id="main" tabindex="-1" class="workspace onboarding"><p class="eyebrow">Private workspace</p><h1>Open your team skill registry</h1><p>Create an isolated workspace or restore one with its private key.</p>${noticeBlock()}<div class="start-grid"><form data-create-workspace><h2>Create a workspace</h2><label>Workspace name<input name="name" required maxlength="80" value="Engineering"></label><button class="button primary">Create private workspace</button></form><form data-restore-workspace><h2>Restore a workspace</h2><label>Private workspace key<input name="token" required autocomplete="off" placeholder="tsr_…"></label><button class="button">Restore workspace</button></form></div><p class="key-warning">Keep the workspace key in your password manager. The server stores only its hash.</p></main>`;
 }
-function detail(skill: Skill) { return `<div class="detail-head"><div><span class="ring ${skill.ring}">${skill.ring === 'all' ? 'Released everywhere' : 'Ring: ' + skill.ring}</span><h2>${esc(skill.name)}</h2><p>${esc(skill.summary)}</p></div><span class="version">v${esc(skill.version)}</span></div><dl class="metadata"><div><dt>Owners</dt><dd>${esc(skill.owner)}</dd></div><div><dt>Agent adapters</dt><dd>${chips(skill.targets)}</dd></div><div><dt>Secret references</dt><dd>${skill.secrets.length ? skill.secrets.map(esc).join(', ') : 'None named'}</dd></div><div><dt>Changed</dt><dd>${esc(skill.updated)}</dd></div></dl><section class="release-track" aria-labelledby="release-title"><h3 id="release-title">Release ring</h3><div class="track"><button class="${skill.ring === 'draft' ? 'active' : ''}" data-ring="draft">Draft</button><span></span><button class="${skill.ring === 'review' ? 'active' : ''}" data-ring="review">Review</button><span></span><button class="${skill.ring === 'pilot' ? 'active' : ''}" data-ring="pilot">Pilot</button><span></span><button class="${skill.ring === 'all' ? 'active' : ''}" data-ring="all">All repos</button></div><p>Move this version only after the team agrees.</p></section><form class="receipt-form" data-receipt-form><h3>Record an agent run</h3><p>Use this when an adapter completes a governed run.</p><label>Repository<input name="repository" required value="atlas-api"></label><label>Agent<select name="agent"><option>Codex</option><option>Claude Code</option><option>Cursor</option></select></label><button class="button" type="submit">Record execution receipt</button></form></section>`; }
-
-function legal(kind: 'privacy' | 'terms') {
-  const privacy = kind === 'privacy';
-  return `<main id="main" tabindex="-1" class="legal"><p class="eyebrow">Team Skills Registry</p><h1>${privacy ? 'Privacy for the registry' : 'Terms for the registry'}</h1>${privacy ? `<p>We store skill packets, release choices, and execution receipts in the workspace database.</p><h2>What stays out</h2><p>Do not put secret values in a skill packet. Use a secret reference, such as <code>GITHUB_TOKEN</code>, instead.</p><h2>Demo mode</h2><p>Demo data is stored under a separate browser key and does not reach the server.</p><h2>Billing</h2><p>License checks go to Sociobot only after you choose to restore a license.</p>` : `<p>Use this registry to store and distribute instructions that your team has permission to use.</p><h2>Your responsibilities</h2><p>Review every skill before release. Respect repository access boundaries and agent vendor licenses.</p><h2>Billing and refunds</h2><p>Sociobot is the merchant of record for paid plans. Refunds are handled there and revoke a license.</p><h2>Service limits</h2><p>This service records instructions and receipts. It does not execute code for you.</p>`}</main>`;
+function noticeBlock() { return notice ? `<p class="notice" role="status">${esc(notice)}</p>` : ''; }
+function skillCard(skill:Skill) {
+  const selected=skill.id===selectedId;
+  return `<button class="skill-card ${selected?'selected':''}" data-skill="${esc(skill.id)}" aria-pressed="${selected}"><span class="ring ${skill.ring}">${skill.ring==='all'?'Released':skill.ring}</span><strong>${esc(skill.name)}</strong><small>v${esc(skill.version)} · ${esc(skill.owner)}</small><p>${esc(skill.summary)}</p>${chips(skill.targets)}</button>`;
 }
-function notFound() { return `<main id="main" tabindex="-1" class="not-found"><div class="lost-paper">404</div><p class="eyebrow">A packet went missing</p><h1>This page is not in the registry</h1><p>Return to the release desk and choose a known place.</p>${link('/','Return home','button primary')}</main>`; }
-function render(moveFocus = false) {
-  const path = location.pathname;
-  document.title = isDemo() ? titleFor('/demo') : titleFor(path);
-  let page = isDemo() ? registryPage(true) : path === '/' ? landing() : path === '/registry' ? registryPage(false) : path === '/privacy' ? legal('privacy') : path === '/terms' ? legal('terms') : notFound();
-  app.innerHTML = `${header()}${isDemo() ? demoBanner() : ''}${page}${footer()}<div class="sr-only" aria-live="polite" id="route-announcer"></div>`;
-  if (moveFocus) requestAnimationFrame(() => { const heading = document.querySelector<HTMLElement>('h1'); heading?.setAttribute('tabindex', '-1'); heading?.focus({ preventScroll: true }); const announcer = document.querySelector<HTMLElement>('#route-announcer'); if (announcer) announcer.textContent = document.title; });
+function receiptRow(receipt:Receipt) {
+  return `<tr><td><strong>${esc(receipt.skill)}</strong><br><small>v${esc(receipt.version)} · ${esc(receipt.package_digest.slice(0,8))}</small></td><td>${esc(receipt.repository)}</td><td>${esc(receipt.agent)}</td><td>${esc(receipt.at)}</td><td><span class="recorded">● ${esc(receipt.status)}</span></td></tr>`;
+}
+function publishForm() {
+  if (!publishOpen) return '';
+  return `<section class="publish-panel" aria-labelledby="publish-title"><div class="panel-title"><h2 id="publish-title">Publish an immutable skill version</h2><button class="text-button" data-close-publish>Close</button></div><form data-publish-form class="publish-form">
+  <label>Skill name<input name="name" required maxlength="100"></label><label>Version<input name="version" required value="1.0.0" maxlength="40"></label>
+  <label class="wide">Summary<textarea name="summary" required maxlength="500"></textarea></label><label>Owner<input name="owner" required maxlength="100"></label>
+  <label>Target agents<input name="targets" required value="Codex" aria-describedby="targets-help"><small id="targets-help">Separate names with commas.</small></label>
+  <label class="wide">Instructions<textarea name="instructions" required rows="5"></textarea></label><label class="wide">Adapter instructions<textarea name="adapter" required rows="3"></textarea></label>
+  <label>Git source URL<input name="git_url" type="url" required value="https://github.com/"></label><label>Git commit SHA<input name="git_commit" required minlength="40" maxlength="40" pattern="[0-9a-fA-F]{40}"></label>
+  <label>Assigned repositories<input name="repositories" required value="atlas-api" aria-describedby="repos-help"><small id="repos-help">Separate repository names with commas.</small></label>
+  <label>Secret references<input name="secrets" pattern="[A-Z][A-Z0-9_]*(,[A-Z][A-Z0-9_]*)*" aria-describedby="secrets-help"><small id="secrets-help">Names only, such as GITHUB_TOKEN.</small></label>
+  <button class="button primary wide" type="submit">Publish draft version</button></form></section>`;
+}
+function registryPage(demo:boolean) {
+  if (!demo && !token()) return workspaceStart();
+  const selected=skills.find(skill=>skill.id===selectedId) || skills[0];
+  return `<main id="main" tabindex="-1" class="workspace"><div class="workspace-title"><div><p class="eyebrow">${demo?'Sandbox workspace':'Key-protected workspace'}</p><h1>Review skill releases in one place</h1><p>Inspect exact package content, approval, repository access, and receipts.</p></div><button class="button primary" data-new-skill>Publish a version</button></div>${noticeBlock()}${publishForm()}<div class="workspace-grid"><aside class="skill-list" aria-label="Skill packages"><div class="list-heading"><h2>Skill packages</h2><span>${skills.length}</span></div>${skills.length?skills.map(skillCard).join(''):`<div class="empty"><h2>No skill packages yet</h2><p>Publish the first exact version for review.</p><button class="button" data-new-skill>Publish a version</button></div>`}</aside><section class="detail-panel" aria-live="polite">${selected?detail(selected):`<div class="empty"><h2>The selected package appears here</h2><p>Select a package after you publish it.</p></div>`}</section></div>
+  <section class="receipts" aria-labelledby="receipts-title"><div class="section-heading"><p class="eyebrow">Execution history</p><h2 id="receipts-title">Receipts preserve the installed version</h2></div>${receipts.length?`<div class="table-wrap" tabindex="0" role="region" aria-label="Execution receipts table"><table><thead><tr><th>Skill version</th><th>Repository</th><th>Agent</th><th>Recorded</th><th>State</th></tr></thead><tbody>${receipts.map(receiptRow).join('')}</tbody></table></div>`:`<div class="empty"><p>Receipts appear after an assigned, reviewed package runs.</p></div>`}</section></main>`;
+}
+function detail(skill:Skill) {
+  const approval=skill.approved_by?`<strong>Approved by ${esc(skill.approved_by)}</strong><span>${esc(skill.approved_at || '')}</span>`:`<strong>Awaiting review</strong><span>A reviewer must approve this exact version.</span>`;
+  return `<div class="detail-head"><div><span class="ring ${skill.ring}">${skill.ring==='all'?'Released everywhere':'Ring: '+skill.ring}</span><h2>${esc(skill.name)}</h2><p>${esc(skill.summary)}</p></div><span class="version">v${esc(skill.version)}</span></div>
+  <dl class="metadata"><div><dt>Owner</dt><dd>${esc(skill.owner)}</dd></div><div><dt>Agents</dt><dd>${chips(skill.targets)}</dd></div><div><dt>Repositories</dt><dd>${esc(skill.repositories.join(', '))}</dd></div><div><dt>Secret references</dt><dd>${skill.secrets.length?skill.secrets.map(esc).join(', '):'None named'}</dd></div><div><dt>Git commit</dt><dd><code>${esc(skill.git_commit.slice(0,12))}</code></dd></div><div><dt>Package digest</dt><dd><code>${esc(skill.package_digest.slice(0,12))}</code></dd></div></dl>
+  <section class="package-content"><h3>Instruction package</h3><p>${esc(skill.instructions)}</p><h4>Agent adapters</h4><ul>${Object.entries(skill.adapters).map(([agent,value])=>`<li><strong>${esc(agent)}:</strong> ${esc(value)}</li>`).join('')}</ul></section>
+  <section class="approval-record" aria-label="Approval record">${approval}${!skill.approved_by?`<form data-approve-form><label>Reviewer name<input name="reviewer" required maxlength="100"></label>${isDemo()?'':`<label>Reviewer key<input name="reviewer_key" required autocomplete="off" placeholder="tsr_review_…"></label>`}<button class="button" type="submit">Approve this version</button></form>`:''}</section>
+  <section class="release-track" aria-labelledby="release-title"><h3 id="release-title">Release ring</h3><div class="track">${(['draft','review','pilot','all'] as Ring[]).map(r=>`<button aria-pressed="${skill.ring===r}" class="${skill.ring===r?'active':''}" data-ring="${r}">${r==='all'?'All repos':r[0].toUpperCase()+r.slice(1)}</button>`).join('<span aria-hidden="true"></span>')}</div><p>Pilot and full release require a recorded review.</p></section>
+  <div class="install-row"><button class="button" data-install-package>Download assigned package</button><span>JSON includes instructions, adapters, Git commit, and digest.</span></div>
+  <form class="receipt-form" data-receipt-form><h3>Record an agent run</h3><p>Use this after an assigned adapter installs and runs the package.</p><label>Repository<select name="repository">${skill.repositories.map(repo=>`<option>${esc(repo)}</option>`).join('')}</select></label><label>Agent<select name="agent">${skill.targets.map(agent=>`<option>${esc(agent)}</option>`).join('')}</select></label><button class="button" type="submit">Record execution receipt</button></form>`;
+}
+function legal(kind:'privacy'|'terms') {
+  const privacy=kind==='privacy';
+  return `<main id="main" tabindex="-1" class="legal"><p class="eyebrow">Team Skills Registry</p><h1>${privacy?'Privacy for the registry':'Terms for the registry'}</h1>${privacy?`<p>The service stores skill packages, reviews, repository assignments, and receipts in its workspace database.</p><h2>Workspace keys</h2><p>Your browser stores the private workspace key. The server stores only its SHA-256 hash.</p><h2>Secret references</h2><p>The API accepts uppercase names such as <code>GITHUB_TOKEN</code>. It rejects other formats in that field.</p><h2>Demo mode</h2><p>Demo data uses a separate browser key. Leaving the demo deletes that key.</p>`:`<p>Use this registry only for instructions and repositories your team may access.</p><h2>Your responsibilities</h2><p>Keep the workspace key private. Review each exact version before release.</p><h2>Service limits</h2><p>Check every downloaded instruction package before an agent uses it.</p>`}</main>`;
+}
+function notFound() { return `<main id="main" tabindex="-1" class="not-found"><div class="lost-paper">404</div><p class="eyebrow">Page not found</p><h1>This page is not in the registry</h1><p>Return to the release desk and choose a listed page.</p>${link('/','Return home','button primary')}</main>`; }
+function setMetadata(path:string) {
+  const title=titleFor(path); document.title=title;
+  const descriptions:Record<string,string>={'/':'Publish reviewed agent skill packages and release exact versions to assigned repositories.','/demo':'Try a private skill registry with isolated sample data.','/registry':'Manage reviewed skill packages in a key-protected workspace.','/privacy':'Read how Team Skills Registry handles workspace and demo data.','/terms':'Read the terms for Team Skills Registry.'};
+  const description=descriptions[path] || 'The requested Team Skills Registry page was not found.';
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content',description);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content',title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content',description);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content',title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute('content',description);
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href',`https://team-agent-skills.sociobot.in${path==='/'?'':path}`);
+}
+function render(moveFocus=false) {
+  const path=isDemo()?'/demo':location.pathname;
+  setMetadata(path);
+  const page=isDemo()?registryPage(true):path==='/'?landing():path==='/registry'?registryPage(false):path==='/privacy'?legal('privacy'):path==='/terms'?legal('terms'):notFound();
+  app.innerHTML=`${header()}${isDemo()?demoBanner():''}${page}${footer()}<div class="sr-only" aria-live="polite" id="route-announcer"></div>`;
   bind();
+  if (moveFocus) requestAnimationFrame(()=>{const heading=document.querySelector<HTMLElement>('h1');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});const announcer=document.querySelector<HTMLElement>('#route-announcer');if(announcer)announcer.textContent=document.title;});
 }
 function bind() {
-  document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', () => { window.setTimeout(() => document.querySelector<HTMLElement>('#main')?.focus(), 0); });
-  document.querySelectorAll<HTMLAnchorElement>('[data-route]').forEach(a => a.addEventListener('click', event => { if (event.metaKey || event.ctrlKey) return; event.preventDefault(); history.pushState({}, '', a.href); loadData().then(() => render(true)); }));
-  document.querySelector('[data-reset-demo]')?.addEventListener('click', () => { localStorage.removeItem(demoKey); ({ skills, receipts } = getDemoData()); notice = 'Demo reset. The sample packets are back.'; render(); });
-  document.querySelector('[data-new-skill]')?.addEventListener('click', publishSkill);
-  document.querySelectorAll<HTMLButtonElement>('[data-skill]').forEach(button => button.addEventListener('click', () => { const skill = skills.find(s => s.id === button.dataset.skill); if (!skill) return; document.querySelector('.detail-panel')!.innerHTML = detail(skill); bindDetail(skill); }));
-  const selected = skills[0]; if (selected) bindDetail(selected);
-  document.querySelector('[data-restore-license]')?.addEventListener('click', restoreLicense);
+  document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click',()=>setTimeout(()=>document.querySelector<HTMLElement>('#main')?.focus(),0));
+  document.querySelectorAll<HTMLAnchorElement>('[data-route]').forEach(a=>a.addEventListener('click',event=>{
+    if(event.metaKey||event.ctrlKey)return; event.preventDefault();
+    const next=new URL(a.href).pathname; if(isDemo()&&next==='/registry'){localStorage.removeItem(demoKey);notice='';selectedId='';}
+    history.pushState({},'',a.href); loadData().then(()=>render(true));
+  }));
+  document.querySelector('[data-reset-demo]')?.addEventListener('click',()=>{localStorage.removeItem(demoKey);({skills,receipts}=getDemoData());selectedId=skills[0].id;notice='Demo reset. The sample packages are back.';render();});
+  document.querySelectorAll('[data-new-skill]').forEach(button=>button.addEventListener('click',()=>{publishOpen=true;render();document.querySelector<HTMLElement>('#publish-title')?.scrollIntoView();}));
+  document.querySelector('[data-close-publish]')?.addEventListener('click',()=>{publishOpen=false;render();});
+  document.querySelector<HTMLFormElement>('[data-publish-form]')?.addEventListener('submit',publishSkill);
+  document.querySelectorAll<HTMLButtonElement>('[data-skill]').forEach(button=>button.addEventListener('click',()=>{selectedId=button.dataset.skill||'';render();}));
+  const selected=skills.find(skill=>skill.id===selectedId)||skills[0]; if(selected)bindDetail(selected);
+  document.querySelector<HTMLFormElement>('[data-create-workspace]')?.addEventListener('submit',createWorkspace);
+  document.querySelector<HTMLFormElement>('[data-restore-workspace]')?.addEventListener('submit',restoreWorkspace);
 }
-function bindDetail(skill: Skill) {
-  document.querySelectorAll<HTMLButtonElement>('[data-ring]').forEach(button => button.addEventListener('click', async () => { const ring = button.dataset.ring as Ring; skill.ring = ring; skill.updated = 'Just now'; if (isDemo()) saveDemo(); else { try { await fetch(`/api/skills/${skill.id}/ring`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ring }) }); } catch { notice = 'The release ring did not save. Try again.'; } } notice = `${skill.name} is now in ${ring === 'all' ? 'all repositories' : ring}.`; render(); }));
-  document.querySelector<HTMLFormElement>('[data-receipt-form]')?.addEventListener('submit', async event => { event.preventDefault(); const form = new FormData(event.currentTarget as HTMLFormElement); const receipt: Receipt = { id: `rcpt-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, skill: skill.name, version: skill.version, repository: String(form.get('repository')), agent: String(form.get('agent')), ring: skill.ring, at: 'Just now', status: 'Recorded' }; if (isDemo()) { receipts.unshift(receipt); saveDemo(); } else { try { const response = await fetch('/api/receipts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ skill_id: skill.id, repository: receipt.repository, agent: receipt.agent }) }); if (!response.ok) throw new Error(); receipts.unshift(receipt); } catch { notice = 'The receipt could not be recorded. Check the server and try again.'; render(); return; } } notice = `Recorded ${receipt.id} for ${receipt.repository}.`; render(); });
+function bindDetail(skill:Skill) {
+  document.querySelector<HTMLFormElement>('[data-approve-form]')?.addEventListener('submit',async event=>{
+    event.preventDefault();const form=new FormData(event.currentTarget as HTMLFormElement);const reviewer=String(form.get('reviewer'));const reviewer_key=String(form.get('reviewer_key')||'demo');
+    if(isDemo()){skill.approved_by=reviewer;skill.approved_at='Just now';skill.ring='review';saveDemo();}
+    else try{const result=await (await api(`/api/skills/${skill.id}/approve`,{method:'POST',body:JSON.stringify({reviewer,reviewer_key})})).json();skill.approved_by=result.reviewer;skill.approved_at=result.approved_at;skill.ring='review';}catch(error){notice=message(error);render();return;}
+    notice=`${skill.name} was approved by ${reviewer}.`;render();
+  });
+  document.querySelectorAll<HTMLButtonElement>('[data-ring]').forEach(button=>button.addEventListener('click',async()=>{
+    const ring=button.dataset.ring as Ring; const previous=skill.ring;
+    if(isDemo()){if((ring==='pilot'||ring==='all')&&!skill.approved_by){notice='Approve this exact version before release.';render();return;}skill.ring=ring;skill.updated='Just now';saveDemo();}
+    else try{await api(`/api/skills/${skill.id}/ring`,{method:'PATCH',body:JSON.stringify({ring})});skill.ring=ring;skill.updated='Just now';}catch(error){skill.ring=previous;notice=`Release unchanged. ${message(error)}`;render();return;}
+    notice=`${skill.name} is now in ${ring==='all'?'all assigned repositories':ring}.`;render();
+  }));
+  document.querySelector<HTMLButtonElement>('[data-install-package]')?.addEventListener('click',async()=>{
+    const repository=skill.repositories[0]; try{
+      const payload=isDemo()?{schema:'team-agent-skill/v1',repository,package:skill}:await (await api(`/api/repositories/${encodeURIComponent(repository)}/install/${skill.id}`)).json();
+      const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download=`${skill.id}-${skill.version}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>{URL.revokeObjectURL(url);notice=`Downloaded ${skill.name} for ${repository}.`;render();},1000);
+    }catch(error){notice=message(error);render();}
+  });
+  document.querySelector<HTMLFormElement>('[data-receipt-form]')?.addEventListener('submit',async event=>{
+    event.preventDefault();const form=new FormData(event.currentTarget as HTMLFormElement);const repository=String(form.get('repository'));const agent=String(form.get('agent'));
+    let receipt:Receipt;
+    if(isDemo()){receipt={id:`rcpt-${crypto.randomUUID().slice(0,6).toUpperCase()}`,skill:skill.name,version:skill.version,package_digest:skill.package_digest,repository,agent,ring:skill.ring,at:'Just now',status:'Recorded'};receipts.unshift(receipt);saveDemo();}
+    else try{receipt=await (await api('/api/receipts',{method:'POST',body:JSON.stringify({skill_id:skill.id,repository,agent})})).json();receipts.unshift(receipt);}catch(error){notice=message(error);render();return;}
+    notice=`Recorded ${receipt.id} for ${repository}.`;render();
+  });
 }
-async function publishSkill() {
-  const name = window.prompt('Skill name'); if (!name?.trim()) return;
-  const summary = window.prompt('What does this skill check or do?'); if (!summary?.trim()) return;
-  const skill: Skill = { id: `skill-${crypto.randomUUID()}`, name: name.trim(), summary: summary.trim(), version: '0.1.0', targets: ['Codex'], ring: 'draft', updated: 'Just now', owner: 'You', secrets: [] };
-  if (isDemo()) { skills.unshift(skill); saveDemo(); } else { try { const response = await fetch('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(skill) }); if (!response.ok) throw new Error(); skills.unshift(await response.json()); } catch { notice = 'The skill could not be published. Check the server and try again.'; render(); return; } }
-  notice = `${skill.name} is a draft packet. Choose a release ring when it is reviewed.`; render();
+async function createWorkspace(event:SubmitEvent) {
+  event.preventDefault();const name=String(new FormData(event.currentTarget as HTMLFormElement).get('name'));
+  try{const result=await (await api('/api/session',{method:'POST',body:JSON.stringify({name})})).json();localStorage.setItem(tokenKey,result.token);await loadData();notice=`Save owner key ${result.token}. Give reviewer key ${result.reviewer_key} to the person who approves releases.`;render();}catch(error){notice=message(error);render();}
 }
-async function restoreLicense() { const input = document.querySelector<HTMLInputElement>('[data-license]'); const license = input?.value.trim(); if (!license) { notice = 'Paste a license token first.'; render(); return; } localStorage.setItem('sb_license:team-agent-skills', license); try { const response = await fetch(`https://api.sociobot.in/api/v1/products/team-agent-skills/verify?license=${encodeURIComponent(license)}`); const result = await response.json() as { valid: boolean }; localStorage.setItem('sb_license_check:team-agent-skills', JSON.stringify({ ...result, checkedAt: Date.now() })); notice = result.valid ? 'License checked and active.' : 'This license is not active. You can buy the team plan.'; } catch { notice = 'License saved. We will check it when a connection is available.'; } render(); }
-window.addEventListener('popstate', () => loadData().then(() => render(true)));
-loadData().then(() => render());
+async function restoreWorkspace(event:SubmitEvent) {
+  event.preventDefault();const value=String(new FormData(event.currentTarget as HTMLFormElement).get('token')).trim();localStorage.setItem(tokenKey,value);
+  await loadData();if(notice){localStorage.removeItem(tokenKey);render();return;}notice='Private workspace restored.';render();
+}
+async function publishSkill(event:SubmitEvent) {
+  event.preventDefault();const form=new FormData(event.currentTarget as HTMLFormElement);
+  const csv=(name:string)=>String(form.get(name)||'').split(',').map(v=>v.trim()).filter(Boolean);
+  const targets=csv('targets');
+  const skill:Skill={id:`skill-${crypto.randomUUID()}`,name:String(form.get('name')),version:String(form.get('version')),summary:String(form.get('summary')),owner:String(form.get('owner')),targets,ring:'draft',updated:'Just now',secrets:csv('secrets'),instructions:String(form.get('instructions')),adapters:Object.fromEntries(targets.map(target=>[target,String(form.get('adapter'))])),git_url:String(form.get('git_url')),git_commit:String(form.get('git_commit')),package_digest:'pending',repositories:csv('repositories'),approved_by:null,approved_at:null};
+  if(isDemo()){skill.package_digest=crypto.randomUUID().replaceAll('-','').padEnd(64,'0');skills.unshift(skill);saveDemo();}
+  else try{const created=await (await api('/api/skills',{method:'POST',body:JSON.stringify(skill)})).json();skills.unshift(created);}catch(error){notice=message(error);render();return;}
+  selectedId=skill.id;publishOpen=false;notice=`${skill.name} v${skill.version} is ready for an independent review.`;render();
+}
+window.addEventListener('popstate',()=>loadData().then(()=>render(true)));
+loadData().then(()=>render());

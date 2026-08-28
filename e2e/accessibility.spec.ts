@@ -23,3 +23,16 @@ test('accessibility smoke has no serious or critical axe violations on desktop a
   await expectNoSeriousAxeViolations(page, '/privacy', { width: 390, height: 844 });
   await expectNoSeriousAxeViolations(page, '/terms', { width: 390, height: 844 });
 });
+
+test('mobile controls expose state, fit, and meet the 44px target', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  const controls = page.locator('nav a, .demo-banner button, .demo-banner a, .track button, .receipt-form select, .receipt-form button, footer a');
+  const boxes = await controls.evaluateAll(elements => elements.map(element => {
+    const box = element.getBoundingClientRect();
+    return { text: element.textContent?.trim(), width: box.width, height: box.height, right: box.right };
+  }));
+  expect(boxes.every(box => box.height >= 44 && box.right <= 390), JSON.stringify(boxes)).toBe(true);
+  await expect(page.getByRole('button', { name:'Secure commit' })).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('button', { name:'All repos' })).toHaveAttribute('aria-pressed','true');
+});
