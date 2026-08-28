@@ -20,3 +20,10 @@ test('Docker runtime keeps the required container contract', async () => {
   assert.match(dockerfile, /USER app/);
   assert.match(dockerfile, /EXPOSE 8080/);
 });
+
+test('Docker context excludes local build output and private runtime data', async () => {
+  const ignore = await readFile(new URL('../.dockerignore', import.meta.url), 'utf8');
+  for (const entry of ['.git', 'node_modules', 'target', 'dist', 'data', '.env']) {
+    assert.match(ignore, new RegExp(`^${entry.replace('.', '\\.').replace('/', '\\/')}$`, 'm'));
+  }
+});
