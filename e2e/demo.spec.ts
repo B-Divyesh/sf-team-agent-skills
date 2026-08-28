@@ -50,12 +50,37 @@ test('@claim:review-required new versions cannot enter pilot before review', asy
   await page.getByLabel('Summary').fill('Check dependency changes before release.');
   await page.getByLabel('Owner').fill('Mina Patel');
   await page.getByLabel('Instructions', { exact: true }).fill('Run the dependency audit and record every changed package.');
-  await page.getByLabel('Adapter instructions', { exact: true }).fill('Run the repository audit command.');
+  await page.getByLabel('Codex adapter', { exact: true }).fill('Run the repository audit command.');
   await page.getByLabel('Git commit SHA').fill('7fa45d6e0ca5274ed376bc86a0c8c6f1d959aad2');
   await page.getByRole('button', { name: 'Publish draft version' }).click();
   await page.getByRole('button', { name: 'Pilot', exact: true }).click();
   await expect(page.getByText('Approve this exact version before release.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Draft', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('malformed demo storage recovers to a resettable sample workspace', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('demo:team-agent-skills:v2', '{broken json'));
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review skill releases in one place');
+  await expect(page.getByText('Damaged demo data was reset to a clean sample.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset demo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Secure commit' })).toBeVisible();
+});
+
+test('publish form collects different adapter content for each target', async ({ page }) => {
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Publish a version' }).click();
+  await page.getByLabel('Target agents').fill('Codex, Claude Code');
+  await page.getByLabel('Codex adapter').fill('Read AGENTS.md.');
+  await page.getByLabel('Claude Code adapter').fill('Read CLAUDE.md.');
+  await page.getByLabel('Skill name').fill('Adapter check');
+  await page.getByLabel('Summary').fill('Keep each agent adapter distinct.');
+  await page.getByLabel('Owner').fill('Mina Patel');
+  await page.getByLabel('Instructions', { exact: true }).fill('Run the repository checks.');
+  await page.getByLabel('Git commit SHA').fill('7fa45d6e0ca5274ed376bc86a0c8c6f1d959aad2');
+  await page.getByRole('button', { name: 'Publish draft version' }).click();
+  await expect(page.locator('.package-content')).toContainText('Codex: Read AGENTS.md.');
+  await expect(page.locator('.package-content')).toContainText('Claude Code: Read CLAUDE.md.');
 });
 
 test('@claim:package-contents downloaded package contains exact source and adapter data', async ({ page }) => {
@@ -72,4 +97,5 @@ test('@claim:package-contents downloaded package contains exact source and adapt
   expect(payload.package.adapters.Codex).toContain('AGENTS.md');
   expect(payload.package.git_commit).toHaveLength(40);
   expect(payload.package.package_digest).toHaveLength(64);
+  expect(payload.package.package_signature).toHaveLength(128);
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleSkills, titleFor } from './data';
 
-describe('registry sample @claim:demo-seed', () => {
+describe('registry sample data', () => {
   it('contains reviewed skill packets for the sandbox', () => {
     expect(sampleSkills).toHaveLength(3);
     expect(sampleSkills.some((skill) => skill.ring === 'all')).toBe(true);

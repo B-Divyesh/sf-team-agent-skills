@@ -29,7 +29,7 @@
   },
   {
     "id": "package-contents",
-    "claim": "A downloaded package contains its exact instructions, adapter content, Git commit, version, and digest.",
+    "claim": "A downloaded package contains its exact instructions, adapter content, Git commit, version, digest, and signature.",
     "where": "landing release path and registry package detail",
     "test": "npx playwright test --grep @claim:package-contents",
     "sandbox": "fresh browser context at /demo; download assigned package; parse JSON and assert the complete immutable fields"
@@ -38,14 +38,42 @@
     "id": "private-workspace",
     "claim": "Real workspaces require a private access key and isolate their records.",
     "where": "landing facts, registry start, privacy, README",
-    "test": "cargo test --locked release_binary_enforces_private_reviewed_repository_packages",
-    "sandbox": "fresh server and database; assert unauthenticated reads fail and a second workspace cannot read or approve the first workspace's package"
+    "test": "cargo test --locked claim_private_workspace",
+    "sandbox": "fresh server and database; assert unauthenticated reads fail, a second workspace cannot read the first, and both may use the same package id"
   },
   {
     "id": "secret-reference-format",
     "claim": "The API accepts uppercase secret reference names and rejects other formats.",
     "where": "landing privacy section and privacy route",
-    "test": "cargo test --locked release_binary_enforces_private_reviewed_repository_packages",
+    "test": "cargo test --locked claim_secret_reference_format",
     "sandbox": "fresh server and database; submit a secret-like value and assert HTTP 400, then submit GITHUB_TOKEN and assert creation succeeds"
+  },
+  {
+    "id": "git-signed-package",
+    "claim": "Published packages use a verified GitHub commit and a signature over every immutable distributed field.",
+    "where": "README, landing release path, registry package detail",
+    "test": "cargo test --locked claim_git_signed_package",
+    "sandbox": "fresh server with a recorded GitHub verifier fixture; reject invented source; assert distinct digests; decode the signed payload and verify its SHA-256 digest and Ed25519 signature"
+  },
+  {
+    "id": "independent-one-time-review",
+    "claim": "A reviewer can inspect and approve one package without an owner key, and the reviewer key works once.",
+    "where": "README and review route",
+    "test": "cargo test --locked claim_independent_one_time_review",
+    "sandbox": "fresh server; fetch and approve with only the package reviewer key; assert owner key cannot review and reuse returns 401"
+  },
+  {
+    "id": "governed-execution-receipt",
+    "claim": "A receipt is issued only for an assigned agent and repository after an approved package enters pilot or full release.",
+    "where": "README, registry receipt form, landing release path",
+    "test": "cargo test --locked claim_governed_execution_receipt",
+    "sandbox": "fresh server; reject draft, review-ring, wrong-agent, and wrong-repository receipts; assert accepted receipt contains approval, package signature, and receipt signature"
+  },
+  {
+    "id": "managed-plan-status",
+    "claim": "The researched managed plan is $149 per team each month, but billing is not active in this release.",
+    "where": "landing pricing section and README",
+    "test": "npx playwright test --grep @claim:managed-plan-status",
+    "sandbox": "fresh landing page; assert the exact price, inactive-billing notice, and absence of checkout or payment controls"
   }
 ]

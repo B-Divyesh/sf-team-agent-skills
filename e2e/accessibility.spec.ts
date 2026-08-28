@@ -22,6 +22,37 @@ test('accessibility smoke has no serious or critical axe violations on desktop a
   await expectNoSeriousAxeViolations(page, '/demo', { width: 390, height: 844 });
   await expectNoSeriousAxeViolations(page, '/privacy', { width: 390, height: 844 });
   await expectNoSeriousAxeViolations(page, '/terms', { width: 390, height: 844 });
+  await expectNoSeriousAxeViolations(page, '/review', { width: 390, height: 844 });
+  await expectNoSeriousAxeViolations(page, '/404.html', { width: 390, height: 844 });
+});
+
+test('static 404 home link has contrast and a 44px target', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/404.html');
+  const box = await page.getByRole('link', { name: 'Team Skills Registry home' }).boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(44);
+  await expect(page).toHaveTitle('Page not found — Team Skills Registry');
+});
+
+test('demo supports reduced motion, keyboard reset, and 390px layout', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/demo');
+  const layout = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
+    moving: Array.from(document.querySelectorAll('*')).filter(element => {
+      const style=getComputedStyle(element);
+      return style.animationName !== 'none' || style.transitionDuration !== '0s';
+    }).length
+  }));
+  expect(layout).toEqual({ overflow: 0, scrollBehavior: 'auto', moving: 0 });
+  const reset = page.getByRole('button', { name: 'Reset demo' });
+  await reset.focus();
+  const outline = await reset.evaluate(element => getComputedStyle(element).outlineWidth);
+  expect(parseFloat(outline)).toBeGreaterThanOrEqual(3);
+  await page.keyboard.press('Space');
+  await expect(page.getByText('Demo reset. The sample packages are back.')).toBeVisible();
 });
 
 test('mobile controls expose state, fit, and meet the 44px target', async ({ page }) => {

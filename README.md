@@ -1,11 +1,11 @@
 # Team Skills Registry
 
-Publish reviewed agent skill packages and release exact versions to assigned repositories.
+Publish reviewed agent skills and release them safely across repositories.
 
-Team Skills Registry is for engineering leads who maintain instructions across
-Codex, Claude Code, Cursor, and similar coding agents. Each immutable version
-contains instructions, adapter content, a Git source commit, secret reference
-names, repository assignments, an approval record, and a package digest.
+Team Skills Registry is for engineering leads who maintain instructions for
+different coding agents. Each version contains its instructions, agent-specific
+adapters, verified GitHub commit, repository assignments, and secret reference
+names. The service signs the complete package before review.
 
 ## Run locally
 
@@ -17,54 +17,70 @@ npm run build
 cargo run
 ```
 
-Open `http://localhost:8080`. The service creates `data/registry.db` and
-needs no environment variables. `PORT` changes the listener and
-`DATABASE_PATH` changes the SQLite file.
+Open `http://localhost:8080`. `PORT` changes the listener. `DATABASE_PATH`
+changes the SQLite location.
 
-Open `/registry`, then create a private workspace. The browser receives a
-random owner key and a separate one-time reviewer key. The server stores only
-their SHA-256 hashes. Save the owner key in a password manager. Give the
-reviewer key to the person who approves releases.
+Open `/registry` and create a workspace. Save its owner key in a password
+manager. Publishing creates a separate reviewer key for that one package.
+The reviewer opens `/review` with only that key. Approval consumes the key.
+
+The source verifier accepts public GitHub repository URLs. It confirms the
+exact commit through GitHub before signing. Set `GIT_VERIFY_API_BASE` only when
+running a compatible local verifier fixture.
 
 ## Try the sandbox
 
-Open `/demo` or `/?demo=1`. It loads three complete skill packages, approval
-records, repository assignments, and receipts. Demo storage uses
-`demo:team-agent-skills:v2`. It never calls the registry API. Reset reseeds
-the sample; leaving the demo deletes its storage.
+Open `/demo` or `/?demo=1`. It loads three complete packages, approval records,
+repository assignments, and receipts. Demo storage uses
+`demo:team-agent-skills:v2`. Reset restores the sample. Leaving deletes it.
+
+## Release rules
+
+- Pilot and full release require a recorded review.
+- A receipt requires an installed release, assigned repository, and named agent.
+- Downloads contain the signed payload, digest, Ed25519 signature, and signer key.
+- `/api/trust` exposes the signer key and fingerprint for consumer pinning.
+- Workspace identifiers are isolated, so teams may use the same package id.
+
+Every statement above has an exact test in [.factory/claims.json](.factory/claims.json).
 
 ## Test and build
 
 ```sh
 npm ci
+npm audit
 npm test
 npm run typecheck
 npm run build
 npx playwright test
-cargo test --locked
 cargo fmt --all -- --check
 cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
 cargo build --release --locked
-npm audit
 ```
-
-The claim checks and their exact commands are in `.factory/claims.json`.
 
 ## API workflow
 
-Create a workspace with `POST /api/session`. Send its returned key as
-`Authorization: Bearer <key>` to every registry endpoint. Publish a complete
-version at `POST /api/skills`, record review at
-`POST /api/skills/:id/approve`, and release it with
-`PATCH /api/skills/:id/ring`. Assigned agents fetch a reviewed pilot or full
-release from `GET /api/repositories/:repository/install/:id`.
+Create a workspace with `POST /api/session`. Send its owner key as
+`Authorization: Bearer <key>` to registry endpoints. Publish at
+`POST /api/skills`. The response contains the package's one-time reviewer key.
+
+A reviewer sends that key to `GET /api/review`, then approves with
+`POST /api/review/approve`. The owner releases it with
+`PATCH /api/skills/:id/ring`. Assigned agents fetch it from
+`GET /api/repositories/:repository/install/:id`.
+
+## Managed plan
+
+The researched managed plan is $149 per team each month. Billing is not active
+in this release, so the product does not collect payment or claim a purchasable
+subscription. A future managed release must use the Sociobot billing API. The
+self-hosted MIT build remains available.
 
 ## Deploy
 
-The multi-stage Dockerfile builds the Vite frontend and Rust service from the
-lockfiles. It uses the current stable Rust image, runs as a non-root user,
-listens on `PORT` (default `8080`), and reports `BUILD_SHA` at `/health`.
-Mount `/data` for persistence.
+Build the root Dockerfile and mount `/data` for the database and signing
+identity.
 
 ```sh
 docker build --build-arg BUILD_SHA=local -t team-agent-skills .

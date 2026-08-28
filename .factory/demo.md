@@ -1,7 +1,7 @@
 # Demo sandbox
 
 Open `/demo` or `/?demo=1` for the isolated registry. It seeds three realistic
-skill packets and three execution receipts: Secure commit, Migration review, and
+skill packages and three execution receipts: Secure commit, Migration review, and
 Incident note.
 
 Demo mode stores data only at `localStorage['demo:team-agent-skills:v2']`.
