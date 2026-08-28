@@ -8,10 +8,10 @@
   },
   {
     "id": "execution-receipt",
-    "claim": "Every run records a version receipt.",
+    "claim": "Receipts preserve the exact package version.",
     "where": "landing fact and registry receipt form",
     "test": "npx playwright test --grep @claim:execution-receipt",
-    "sandbox": "fresh browser context at /demo; record a run; assert selected skill version and repository appear in the receipt table"
+    "sandbox": "fresh browser context at /demo; record a run; assert selected version, digest, and repository appear in the receipt table"
   },
   {
     "id": "demo-local-data",
@@ -19,5 +19,33 @@
     "where": "landing fact and demo banner",
     "test": "npx playwright test --grep @claim:demo-local-data",
     "sandbox": "fresh browser context at /demo; record outgoing origins during reset and assert only the product origin; set offline and assert the sample UI remains visible"
+  },
+  {
+    "id": "review-required",
+    "claim": "Pilot and full release require a recorded review.",
+    "where": "landing release path and registry release control",
+    "test": "npx playwright test --grep @claim:review-required",
+    "sandbox": "fresh browser context at /demo; publish an unreviewed exact version; try pilot; assert it stays draft and explains the required review"
+  },
+  {
+    "id": "package-contents",
+    "claim": "A downloaded package contains its exact instructions, adapter content, Git commit, version, and digest.",
+    "where": "landing release path and registry package detail",
+    "test": "npx playwright test --grep @claim:package-contents",
+    "sandbox": "fresh browser context at /demo; download assigned package; parse JSON and assert the complete immutable fields"
+  },
+  {
+    "id": "private-workspace",
+    "claim": "Real workspaces require a private access key and isolate their records.",
+    "where": "landing facts, registry start, privacy, README",
+    "test": "cargo test --locked release_binary_enforces_private_reviewed_repository_packages",
+    "sandbox": "fresh server and database; assert unauthenticated reads fail and a second workspace cannot read or approve the first workspace's package"
+  },
+  {
+    "id": "secret-reference-format",
+    "claim": "The API accepts uppercase secret reference names and rejects other formats.",
+    "where": "landing privacy section and privacy route",
+    "test": "cargo test --locked release_binary_enforces_private_reviewed_repository_packages",
+    "sandbox": "fresh server and database; submit a secret-like value and assert HTTP 400, then submit GITHUB_TOKEN and assert creation succeeds"
   }
 ]
