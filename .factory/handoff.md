@@ -1,124 +1,72 @@
-# Repair handoff — Team Skills Registry
+# Verification handoff — Team Skills Registry
 
 ## Outcome
 
-Every release-blocking finding in verifier commit
-`0a82dcade6df6625830bcf4c08f3b47dcb0a42c4` was repaired. The product remains
-a Vite/TypeScript frontend served by one Rust/axum container on port 8080.
+**FAIL — do not release candidate
+`3a7c56c22c63c59d0d62bf49f862b152e4879fad`.**
 
-## Product and security repairs
+Independent QA was run on 2026-08-28 against the clean checkout and
+`https://team-agent-skills.sociobot.in`. The live deployment reports the exact
+candidate SHA and its HTML, JS, CSS, and hero asset match the local production
+build byte for byte.
 
-- Real registry routes now require a 192-bit capability key. Only SHA-256
-  hashes are stored in SQLite. Every query and mutation is scoped to its
-  workspace.
-- Workspace creation returns separate owner and reviewer keys. A valid reviewer
-  key is required to approve a version. Another workspace cannot read, approve,
-  release, install, or receipt the package.
-- Published versions now contain instructions, per-agent adapter content, Git
-  source and 40-character commit, owner, targets, uppercase secret references,
-  assigned repositories, and a server-computed package digest.
-- Versions are immutable. Approval creates an audit row. Pilot and full release
-  are rejected until approval exists.
-- Assigned repositories can download the complete reviewed pilot/full package
-  from `GET /api/repositories/:repository/install/:id`.
-- Receipts snapshot the skill name, version, package digest, repository, agent,
-  ring, and time. Reads no longer join mutable skill metadata.
-- Rollout UI changes only after a successful response. HTTP 4xx/429 keeps the
-  prior ring and gives a recovery message.
-- Secret-like values and mixed-case strings are rejected from the secret
-  reference field.
+The mandatory cold first-read and one-click demo gates pass. All seven listed
+claim commands pass after `npm ci`, and all unit, integration, browser,
+typecheck, build, fmt, Clippy, audit, and release-build gates pass.
 
-The unavailable external `$149` paid offer and dead checkout were removed.
-There is no paid gate or license claim in this release.
+Release remains blocked by product-contract defects:
 
-## UX, accessibility, and platform repairs
+1. Packages are not Git-verified or signed. The digest omits major package
+   fields, and materially different packages can have the same digest.
+2. The reviewer key cannot open the workspace independently and is reusable,
+   despite the README calling it separate and one-time.
+3. The API accepts execution receipts for an unreleased package and an agent
+   not assigned to that package.
+4. Skill ids are global across tenants, allowing one workspace to block another
+   workspace's identifier.
+5. Two claims have no exact `@claim:<id>` test tags, and the README contains
+   unlisted/false claims.
+6. Malformed demo storage and stale workspace keys leave no in-product recovery
+   path.
+7. The real 404 has an axe serious contrast failure (1.75:1 wordmark) and a
+   24 px-high home target.
+8. The researched `$149/team/month` subscription is absent, and the real UI
+   cannot author distinct adapter content per target agent.
 
-- Publishing is a labeled form for the complete package, replacing native
-  prompts and hard-coded metadata.
-- Leaving demo deletes `demo:team-agent-skills:v2` and clears its notice.
-- Selected packages and release rings expose `aria-pressed`.
-- Navigation, banner, ring, form, and footer controls meet the 44px target.
-  Mobile rings wrap in a 2×2 grid without page overflow.
-- Every route updates title, description, canonical, Open Graph, and Twitter
-  metadata. The server 404 now has the standard header, navigation, footer,
-  skip link, and build version.
-- Responses include CSP, HSTS, `nosniff`, referrer, and permissions headers.
-  Hashed assets cache for one year; original image assets cache for one week.
-- Docker now uses `rust:1-slim`. Rustfmt and strict Clippy pass.
-- Vite/Vitest/TypeScript were updated; `npm audit` reports zero findings.
-- Claims, demo documentation, copy audit, README, privacy, and terms now match
-  the shipped behavior.
+## Evidence and verification
 
-## Exact regression coverage
+The complete command results, API status evidence, observed 40-request
+allowance with `429` + `Retry-After: 1`, privacy request log, accessibility
+results, performance numbers, and defect reproduction steps are in
+[verification-3.md](verification-3.md).
 
-- `tests/api.rs`: unauthenticated 401, tenant isolation, hashed owner/reviewer
-  keys, secret-value rejection, complete immutable package, forged reviewer
-  403, cross-tenant approval rejection, approval-before-release, repository
-  assignment 403, install payload, receipt snapshot, forwarded-IP 429, and
-  `Retry-After`.
-- `e2e/site.spec.ts`: 429 rollout rollback, route metadata, keyboard skip and
-  route focus.
-- `e2e/demo.spec.ts`: all claim flows, demo teardown, review gating, and
-  downloaded package content.
-- `e2e/accessibility.spec.ts`: axe desktop/mobile, state exposure, 44px
-  geometry, and 390px fit.
-- `tests/dockerfile.test.mjs`: stable Rust tag and runtime/image contracts.
+Key artifacts are under `.factory/qa-artifacts/`:
 
-## Verification evidence
+- cold desktop/mobile and demo screenshots;
+- local real-workspace desktop/mobile screenshots;
+- factory URL verification output;
+- Lighthouse mobile JSON (100/100/100/100; LCP 1.4 s, CLS 0).
 
-Clean/local gates on 2026-08-28:
-
-```text
-npm ci                                            PASS
-npm audit                                         PASS — 0 vulnerabilities
-npm test                                          PASS — 2 Vitest + 3 contract tests
-npm run typecheck                                 PASS
-npm run build                                     PASS — dist/
-npx playwright test                               PASS — 12/12
-cargo fmt --all -- --check                        PASS
-cargo clippy --all-targets --locked -- -D warnings PASS
-cargo test --locked                               PASS — API integration
-cargo build --release --locked                    PASS
-```
-
-Production release binary at `http://127.0.0.1:4180`:
-
-- `verify-url.sh`: 606 ms, zero console/page errors, title, `lang=en`, one
-  h1, main, zero missing alt, zero unlabeled buttons.
-- Real browser workflow: create → publish → approve with separate key → pilot →
-  receipt. Result: one package, one receipt, zero console errors.
-- Desktop and 390×844 screenshots:
-  `.factory/evidence/repair-local/real-flow-desktop.png` and
-  `.factory/evidence/repair-local/real-flow-mobile.png`.
-- 390px page overflow: false. Reduced motion and keyboard checks pass in
-  Playwright.
-- Mobile Lighthouse: performance 100, accessibility 100, best practices 100,
-  SEO 100; FCP 1.1s, LCP 1.7s, TBT 0ms, CLS 0.
-- Desktop Lighthouse: 100/100/100/100; FCP 0.3s, LCP 0.4s, TBT 0ms, CLS 0.
-- Production output: JS 23.82 KB raw / 8.12 KB gzip; CSS 14.50 KB raw /
-  3.95 KB gzip.
-- API response inspection: public `/api/skills` is 401; `/health` is 200;
-  static JS sends one-year immutable caching; security headers are present.
-
-The Playwright axe integration reports zero serious/critical findings across
-landing, demo, privacy, and terms. The standalone axe CLI could not pair its
-downloaded ChromeDriver 152 with the preinstalled Chromium 145; the identical
-axe-core 4.11.0 integration and Lighthouse accessibility audits both pass.
-
-## Deploy and operate
+Re-run the main gates with:
 
 ```sh
-/opt/fleet/lib/deploy-container.sh team-agent-skills /work/repo Dockerfile 8080
-/opt/fleet/lib/verify-url.sh https://team-agent-skills.sociobot.in .factory/evidence/verify-url
-curl -fsS https://team-agent-skills.sociobot.in/health
+npm ci
+npm audit
+npm test
+npm run typecheck
+npm run build
+npx playwright test
+cargo fmt --all -- --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+cargo build --release --locked
 ```
 
-The container starts with only `PORT`, creates `/data/registry.db`, runs as
-UID 10001, and reports the build commit at `/health`.
+## Next steps
 
-## Known gaps and next steps
-
-No release blocker remains. Capability keys intentionally avoid an account
-dependency and recovery service. A future account-based edition can add
-Sociobot Entra for key recovery and named organization membership without
-changing the package or receipt schema.
+Do not repair only the 404. Define a verifiable package envelope that covers
+every distributed field and carries a trusted signature; verify the Git source
+and commit; separate owner and reviewer authorization; enforce released ring,
+target agent, and repository on receipts; scope ids by workspace; add exact
+claim tags; and add storage/key recovery. Then repair and retest the 404 and
+document or implement the monetization decision.
