@@ -4,3 +4,8 @@ dist/
 *.log
 graphify-out/
 .DS_Store
+node_modules/
+dist/
+target/
+data/
+.DS_Store

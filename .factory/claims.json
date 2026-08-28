@@ -1,0 +1,23 @@
+[
+  {
+    "id": "demo-separation",
+    "claim": "Demo resets to its own sample data.",
+    "where": "demo banner and README",
+    "test": "npx playwright test --grep @claim:demo-separation",
+    "sandbox": "fresh browser context at /demo; change a release ring; reset; assert seeded packet returns and demo namespace is used"
+  },
+  {
+    "id": "execution-receipt",
+    "claim": "Every run records a version receipt.",
+    "where": "landing fact and registry receipt form",
+    "test": "npx playwright test --grep @claim:execution-receipt",
+    "sandbox": "fresh browser context at /demo; record a run; assert selected skill version and repository appear in the receipt table"
+  },
+  {
+    "id": "demo-local-data",
+    "claim": "Sample data stays in this browser.",
+    "where": "landing fact and demo banner",
+    "test": "npx playwright test --grep @claim:demo-local-data",
+    "sandbox": "fresh browser context at /demo; record outgoing origins during reset and assert only the product origin; set offline and assert the sample UI remains visible"
+  }
+]
