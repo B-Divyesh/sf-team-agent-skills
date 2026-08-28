@@ -9,10 +9,10 @@ receipt records the released version, repository, agent, and time.
 
 ## Run locally
 
-Requirements: Node 22+, Rust 1.85+, and a Chromium browser for claim checks.
+Requirements: Node 22+, Rust 1.88+, and a Chromium browser for claim checks.
 
 ```sh
-npm install
+npm ci
 npm run build
 cargo run
 ```
@@ -35,6 +35,7 @@ reseeds that key. The demo never calls the registry API.
 
 ```sh
 npm test
+npm run typecheck
 npx playwright test
 cargo test
 npm run build
@@ -46,7 +47,9 @@ to `dist/` with `index.html` at its root. The claim checks are named in
 
 ## Deploy
 
-The supplied multi-stage Dockerfile builds the Vite frontend and Rust service.
+The supplied multi-stage Dockerfile builds the Vite frontend and Rust service
+with the committed Node and Cargo lockfiles. Its Rust stage is 1.88 because the
+locked ICU dependency requires that compiler floor.
 It listens on `PORT` (default `8080`) and serves `GET /health` with the build
 SHA. Mount `/data` if the registry should survive container replacement.
 

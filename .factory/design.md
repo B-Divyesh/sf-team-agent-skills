@@ -17,7 +17,7 @@ interchangeable SaaS look while keeping operational details easy to scan.
 | `paper-deep` | `#E9DAB9` | secondary paper planes |
 | `forest` | `#176B5D` | primary action and approved state |
 | `forest-dark` | `#0D4D43` | action hover and high-contrast text |
-| `coral` | `#C74F3C` | risk and blocked state |
+| `coral` | `#A84131` | risk and blocked state; darkened for text contrast |
 | `sun` | `#E4A92B` | review / pending state |
 | `night` | `#10212C` | dark treatment and footer |
 

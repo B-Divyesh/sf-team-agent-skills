@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/dockerfile.test.mjs",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.10.5",
+    "axe-core": "^4.11.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"
