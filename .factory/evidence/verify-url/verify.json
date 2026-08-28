@@ -1,0 +1,14 @@
+{
+  "url": "https://team-agent-skills.sociobot.in",
+  "loadMs": 662,
+  "errors": [],
+  "a11y": {
+    "title": "Team Skills Registry — Review agent skills",
+    "lang": "en",
+    "h1": 1,
+    "main": true,
+    "imgsMissingAlt": 0,
+    "buttonsUnlabeled": 0,
+    "textLength": 1423
+  }
+}
