@@ -6,9 +6,7 @@ COPY frontend ./frontend
 COPY tsconfig.json vite.config.ts ./
 RUN npm run build
 
-# Cargo.lock contains ICU 2.3, whose supported compiler floor is Rust 1.88.
-# Keep this in step with package.rust-version in Cargo.toml.
-FROM rust:1.88-slim AS backend
+FROM rust:1-slim AS backend
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY backend ./backend

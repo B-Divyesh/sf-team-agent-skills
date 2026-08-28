@@ -2,12 +2,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('Docker backend stage supports the locked ICU dependency floor', async () => {
+test('Docker backend stage follows the factory stable toolchain contract', async () => {
   const dockerfile = await readFile(new URL('../Dockerfile', import.meta.url), 'utf8');
-  const match = dockerfile.match(/^FROM rust:(\d+)\.(\d+)(?:\.\d+)?-slim AS backend$/m);
-  assert.ok(match, 'the Dockerfile must use a versioned Rust backend stage');
-  const [, major, minor] = match;
-  assert.ok(Number(major) > 1 || Number(minor) >= 88, 'locked ICU 2.3 requires Rust 1.88 or newer');
+  assert.match(dockerfile, /^FROM rust:1-slim AS backend$/m, 'the Dockerfile must track current stable Rust');
   assert.match(dockerfile, /RUN cargo build --release --locked/, 'the image build must use the committed Cargo.lock');
 });
 
