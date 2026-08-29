@@ -2170,6 +2170,7 @@ name = "team-agent-skills"
 version = "1.2.0"
 dependencies = [
  "axum",
+ "base64",
  "chrono",
  "ed25519-dalek",
  "hex",

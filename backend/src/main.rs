@@ -1,11 +1,12 @@
 use axum::{
-    extract::{Path, State},
+    extract::{connect_info::ConnectInfo, Path, State},
     http::{header, HeaderMap, HeaderValue, Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, patch, post},
     Json, Router,
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
 use rand::{rngs::OsRng, RngCore};
@@ -17,6 +18,7 @@ use std::{
     env,
     fs::OpenOptions,
     io::Write,
+    net::SocketAddr,
     path::{Path as FilePath, PathBuf},
     sync::{Arc, Mutex},
     time::Instant,
@@ -50,11 +52,14 @@ struct Skill {
     adapters: String,
     git_url: String,
     git_commit: String,
+    source_path: String,
+    source_blob_sha: String,
     source_verified_at: String,
     package_digest: String,
     package_signature: String,
     signer_public_key: String,
     repositories: String,
+    pilot_repositories: String,
     approved_by: Option<String>,
     approved_at: Option<String>,
     approval_id: Option<String>,
@@ -79,7 +84,7 @@ struct NewReceipt {
     agent: String,
 }
 #[derive(Deserialize, Clone)]
-struct NewSkill {
+struct SourceSkill {
     id: String,
     name: String,
     version: String,
@@ -89,9 +94,19 @@ struct NewSkill {
     secrets: Vec<String>,
     instructions: String,
     adapters: BTreeMap<String, String>,
+    repositories: Vec<String>,
+    pilot_repositories: Vec<String>,
+}
+#[derive(Deserialize)]
+struct PublishRequest {
     git_url: String,
     git_commit: String,
-    repositories: Vec<String>,
+    source_path: String,
+}
+#[derive(Deserialize)]
+struct InstallCredentialRequest {
+    repository: String,
+    agent: String,
 }
 
 #[derive(Serialize)]
@@ -109,8 +124,11 @@ struct PackageEnvelope<'a> {
     adapters: &'a BTreeMap<String, String>,
     git_url: &'a str,
     git_commit: &'a str,
+    source_path: &'a str,
+    source_blob_sha: &'a str,
     source_verified_at: &'a str,
     repositories: &'a [String],
+    pilot_repositories: &'a [String],
 }
 
 #[derive(Serialize)]
@@ -202,7 +220,11 @@ fn sign_bytes(state: &AppState, bytes: &[u8]) -> String {
 
 fn package_bytes(
     workspace_id: &str,
-    input: &NewSkill,
+    input: &SourceSkill,
+    git_url: &str,
+    git_commit: &str,
+    source_path: &str,
+    source_blob_sha: &str,
     source_verified_at: &str,
 ) -> Result<Vec<u8>, serde_json::Error> {
     serde_json::to_vec(&PackageEnvelope {
@@ -217,10 +239,13 @@ fn package_bytes(
         secrets: &input.secrets,
         instructions: &input.instructions,
         adapters: &input.adapters,
-        git_url: &input.git_url,
-        git_commit: &input.git_commit,
+        git_url,
+        git_commit,
+        source_path,
+        source_blob_sha,
         source_verified_at,
         repositories: &input.repositories,
+        pilot_repositories: &input.pilot_repositories,
     })
 }
 fn stored_package_bytes(skill: &Skill) -> Result<Vec<u8>, serde_json::Error> {
@@ -242,8 +267,11 @@ fn stored_package_bytes(skill: &Skill) -> Result<Vec<u8>, serde_json::Error> {
         adapters: &adapters,
         git_url: &skill.git_url,
         git_commit: &skill.git_commit,
+        source_path: &skill.source_path,
+        source_blob_sha: &skill.source_blob_sha,
         source_verified_at: &skill.source_verified_at,
         repositories: &repositories,
+        pilot_repositories: &json_array(&skill.pilot_repositories),
     })
 }
 fn package_is_valid(state: &AppState, skill: &Skill) -> bool {
@@ -331,7 +359,7 @@ async fn create_session(State(state): State<AppState>, Json(input): Json<NewSess
     }
 }
 
-const SKILL_SELECT: &str = "SELECT workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_verified_at,package_digest,package_signature,signer_public_key,repositories,approved_by,approved_at,approval_id FROM skills";
+const SKILL_SELECT: &str = "SELECT workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,approved_by,approved_at,approval_id FROM skills";
 async fn list_skills(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let workspace_id = match owner_workspace(&headers, &state).await {
         Ok(value) => value,
@@ -358,9 +386,11 @@ fn skill_json(skill: Skill) -> serde_json::Value {
         "targets":json_array(&skill.targets),"ring":skill.ring,"updated":skill.updated,"owner":skill.owner,
         "secrets":json_array(&skill.secrets),"instructions":skill.instructions,"adapters":json_map(&skill.adapters),
         "git_url":skill.git_url,"git_commit":skill.git_commit,"source_verified_at":skill.source_verified_at,
+        "source_path":skill.source_path,"source_blob_sha":skill.source_blob_sha,
         "package_digest":skill.package_digest,"package_signature":skill.package_signature,
         "signer_public_key":skill.signer_public_key,"signed_payload":signed_payload,
         "repositories":json_array(&skill.repositories),
+        "pilot_repositories":json_array(&skill.pilot_repositories),
         "approved_by":skill.approved_by,"approved_at":skill.approved_at,"approval_id":skill.approval_id})
 }
 
@@ -383,7 +413,8 @@ async fn verify_git_source(
     state: &AppState,
     url: &str,
     commit: &str,
-) -> Result<(), (StatusCode, &'static str)> {
+    source_path: &str,
+) -> Result<(SourceSkill, String), (StatusCode, &'static str)> {
     let (owner, repo) = github_repository(url).ok_or((
         StatusCode::BAD_REQUEST,
         "Use a public GitHub repository URL for source verification.",
@@ -416,19 +447,95 @@ async fn verify_git_source(
             "GitHub returned an unreadable verification response.",
         )
     })?;
-    if body["sha"]
+    if !body["sha"]
         .as_str()
         .is_some_and(|sha| sha.eq_ignore_ascii_case(commit))
     {
-        Ok(())
-    } else {
-        Err((
+        return Err((
             StatusCode::UNPROCESSABLE_ENTITY,
             "GitHub did not verify that exact commit.",
-        ))
+        ));
     }
+    if !valid_source_path(source_path) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Use a safe JSON package path inside the repository.",
+        ));
+    }
+    let content_endpoint = format!(
+        "{}/repos/{owner}/{repo}/contents/{source_path}?ref={commit}",
+        state.git_api_base.trim_end_matches('/')
+    );
+    let content_response = state.http.get(content_endpoint).send().await.map_err(|_| {
+        (
+            StatusCode::BAD_GATEWAY,
+            "GitHub package verification is unavailable. Try again.",
+        )
+    })?;
+    if content_response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "GitHub could not find that package file at the verified commit.",
+        ));
+    }
+    if !content_response.status().is_success() {
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            "GitHub package verification is unavailable. Try again.",
+        ));
+    }
+    let content: serde_json::Value = content_response.json().await.map_err(|_| {
+        (
+            StatusCode::BAD_GATEWAY,
+            "GitHub returned an unreadable package file.",
+        )
+    })?;
+    let blob_sha = content["sha"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .ok_or((
+            StatusCode::BAD_GATEWAY,
+            "GitHub did not return a package blob identifier.",
+        ))?;
+    let encoded = content["content"].as_str().ok_or((
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "The source path must point to a UTF-8 JSON skill package.",
+    ))?;
+    let compact: String = encoded.chars().filter(|c| !c.is_whitespace()).collect();
+    let decoded = BASE64.decode(compact).map_err(|_| {
+        (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "The source package is not valid base64 content.",
+        )
+    })?;
+    let source = serde_json::from_slice::<SourceSkill>(&decoded).map_err(|_| {
+        (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "The source package must be valid JSON with every immutable skill field.",
+        )
+    })?;
+    if !valid_package(&source) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "The source package has invalid skill fields or pilot membership.",
+        ));
+    }
+    Ok((source, blob_sha.to_string()))
 }
-fn valid_package(input: &NewSkill) -> bool {
+fn valid_source_path(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 240
+        && value.ends_with(".json")
+        && !value.starts_with('/')
+        && !value.contains("..")
+        && value.split('/').all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        })
+}
+fn valid_package(input: &SourceSkill) -> bool {
     let targets: HashSet<&str> = input.targets.iter().map(String::as_str).collect();
     let repositories: HashSet<&str> = input.repositories.iter().map(String::as_str).collect();
     valid_text(&input.id, 120)
@@ -437,7 +544,6 @@ fn valid_package(input: &NewSkill) -> bool {
         && valid_text(&input.summary, 500)
         && valid_text(&input.owner, 100)
         && valid_text(&input.instructions, 20_000)
-        && valid_commit(&input.git_commit)
         && !input.targets.is_empty()
         && input.targets.len() <= 8
         && targets.len() == input.targets.len()
@@ -446,6 +552,18 @@ fn valid_package(input: &NewSkill) -> bool {
         && input.repositories.len() <= 32
         && repositories.len() == input.repositories.len()
         && input.repositories.iter().all(|item| valid_text(item, 160))
+        && !input.pilot_repositories.is_empty()
+        && input.pilot_repositories.len() <= input.repositories.len()
+        && input
+            .pilot_repositories
+            .iter()
+            .all(|item| repositories.contains(item.as_str()))
+        && input
+            .pilot_repositories
+            .iter()
+            .collect::<HashSet<_>>()
+            .len()
+            == input.pilot_repositories.len()
         && input.secrets.len() <= 16
         && input
             .secrets
@@ -462,26 +580,40 @@ fn valid_package(input: &NewSkill) -> bool {
 async fn create_skill(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(mut input): Json<NewSkill>,
+    Json(mut request): Json<PublishRequest>,
 ) -> Response {
     let workspace_id = match owner_workspace(&headers, &state).await {
         Ok(value) => value,
         Err((status, message)) => return error(status, message),
     };
-    input.git_commit.make_ascii_lowercase();
-    if !valid_package(&input) {
+    request.git_commit.make_ascii_lowercase();
+    if !valid_commit(&request.git_commit) || !valid_source_path(&request.source_path) {
         return error(
             StatusCode::BAD_REQUEST,
-            "Check every package field, give each target its adapter, and use secret names only.",
+            "Use a 40-character commit and a safe JSON package path.",
         );
     }
-    if let Err((status, message)) =
-        verify_git_source(&state, &input.git_url, &input.git_commit).await
+    let (input, source_blob_sha) = match verify_git_source(
+        &state,
+        &request.git_url,
+        &request.git_commit,
+        &request.source_path,
+    )
+    .await
     {
-        return error(status, message);
-    }
+        Ok(value) => value,
+        Err((status, message)) => return error(status, message),
+    };
     let source_verified_at = Utc::now().to_rfc3339();
-    let bytes = match package_bytes(&workspace_id, &input, &source_verified_at) {
+    let bytes = match package_bytes(
+        &workspace_id,
+        &input,
+        &request.git_url,
+        &request.git_commit,
+        &request.source_path,
+        &source_blob_sha,
+        &source_verified_at,
+    ) {
         Ok(value) => value,
         Err(_) => return error(StatusCode::BAD_REQUEST, "The package could not be encoded."),
     };
@@ -495,18 +627,19 @@ async fn create_skill(
     let secrets = serde_json::to_string(&input.secrets).unwrap_or_default();
     let adapters = serde_json::to_string(&input.adapters).unwrap_or_default();
     let repositories = serde_json::to_string(&input.repositories).unwrap_or_default();
-    let result = sqlx::query("INSERT INTO skills (workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_verified_at,package_digest,package_signature,signer_public_key,repositories,reviewer_hash,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    let pilot_repositories = serde_json::to_string(&input.pilot_repositories).unwrap_or_default();
+    let result = sqlx::query("INSERT INTO skills (workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,reviewer_hash,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&workspace_id).bind(&input.id).bind(&input.name).bind(&input.version).bind(&input.summary).bind(&targets)
         .bind("draft").bind(&updated).bind(&input.owner).bind(&secrets).bind(&input.instructions).bind(&adapters)
-        .bind(&input.git_url).bind(&input.git_commit).bind(&source_verified_at).bind(&digest).bind(&signature)
-        .bind(&public_key).bind(&repositories).bind(hash(&reviewer_key)).bind(Utc::now().timestamp()).execute(&state.db).await;
+        .bind(&request.git_url).bind(&request.git_commit).bind(&request.source_path).bind(&source_blob_sha).bind(&source_verified_at).bind(&digest).bind(&signature)
+        .bind(&public_key).bind(&repositories).bind(&pilot_repositories).bind(hash(&reviewer_key)).bind(Utc::now().timestamp()).execute(&state.db).await;
     match result {
         Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"id":input.id,"name":input.name,"version":input.version,
             "summary":input.summary,"targets":input.targets,"ring":"draft","updated":updated,"owner":input.owner,
-            "secrets":input.secrets,"instructions":input.instructions,"adapters":input.adapters,"git_url":input.git_url,
-            "git_commit":input.git_commit,"source_verified_at":source_verified_at,"package_digest":digest,
+            "secrets":input.secrets,"instructions":input.instructions,"adapters":input.adapters,"git_url":request.git_url,
+            "git_commit":request.git_commit,"source_path":request.source_path,"source_blob_sha":source_blob_sha,"source_verified_at":source_verified_at,"package_digest":digest,
             "package_signature":signature,"signer_public_key":public_key,"signed_payload":signed_payload,
-            "repositories":input.repositories,
+            "repositories":input.repositories,"pilot_repositories":input.pilot_repositories,
             "approved_by":null,"approved_at":null,"approval_id":null,"reviewer_key":reviewer_key}))).into_response(),
         Err(value) if value.to_string().contains("UNIQUE") => error(StatusCode::CONFLICT, "That skill id or name and version already exists in this workspace."),
         Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "The skill package could not be published."),
@@ -662,6 +795,69 @@ async fn list_receipts(State(state): State<AppState>, headers: HeaderMap) -> Res
         ),
     }
 }
+fn repository_is_released(skill: &Skill, repository: &str) -> bool {
+    match skill.ring.as_str() {
+        "all" => json_array(&skill.repositories)
+            .iter()
+            .any(|item| item == repository),
+        "pilot" => json_array(&skill.pilot_repositories)
+            .iter()
+            .any(|item| item == repository),
+        _ => false,
+    }
+}
+async fn issue_install_credential(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(input): Json<InstallCredentialRequest>,
+) -> Response {
+    let workspace_id = match owner_workspace(&headers, &state).await {
+        Ok(value) => value,
+        Err((status, message)) => return error(status, message),
+    };
+    if !valid_text(&input.repository, 160) || !valid_text(&input.agent, 80) {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "Name an assigned repository and agent.",
+        );
+    }
+    let sql = format!("{SKILL_SELECT} WHERE id=? AND workspace_id=?");
+    let skill = match sqlx::query_as::<_, Skill>(&sql)
+        .bind(&id)
+        .bind(&workspace_id)
+        .fetch_optional(&state.db)
+        .await
+    {
+        Ok(Some(value)) => value,
+        Ok(None) => {
+            return error(
+                StatusCode::NOT_FOUND,
+                "That skill version no longer exists.",
+            )
+        }
+        Err(_) => {
+            return error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "The skill version could not be checked.",
+            )
+        }
+    };
+    if !json_array(&skill.repositories).contains(&input.repository)
+        || !json_array(&skill.targets).contains(&input.agent)
+    {
+        return error(
+            StatusCode::FORBIDDEN,
+            "This credential must match an assigned repository and agent.",
+        );
+    }
+    let credential = format!("tsr_install_{}", random_hex(24));
+    match sqlx::query("INSERT INTO install_credentials (workspace_id,skill_id,repository,agent,token_hash,created_at) VALUES (?,?,?,?,?,?)")
+        .bind(&workspace_id).bind(&skill.id).bind(&input.repository).bind(&input.agent).bind(hash(&credential)).bind(Utc::now().timestamp()).execute(&state.db).await {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"credential":credential,"skill_id":skill.id,"repository":input.repository,"agent":input.agent}))).into_response(),
+        Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "The scoped install credential could not be issued."),
+    }
+}
 async fn create_receipt(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -707,10 +903,10 @@ async fn create_receipt(
             "The signed package failed verification.",
         );
     }
-    if !json_array(&skill.repositories).contains(&input.repository) {
+    if !repository_is_released(&skill, &input.repository) {
         return error(
             StatusCode::FORBIDDEN,
-            "This skill version is not assigned to that repository.",
+            "This repository is not in the active release ring.",
         );
     }
     if !json_array(&skill.targets).contains(&input.agent) {
@@ -758,17 +954,26 @@ async fn create_receipt(
 async fn install_skill(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path((repository, id)): Path<(String, String)>,
+    Path((repository, agent, id)): Path<(String, String, String)>,
 ) -> Response {
-    let workspace_id = match owner_workspace(&headers, &state).await {
-        Ok(value) => value,
-        Err((status, message)) => return error(status, message),
+    let Some(credential) = bearer(&headers) else {
+        return error(
+            StatusCode::UNAUTHORIZED,
+            "Use a repository and agent scoped install credential.",
+        );
+    };
+    let workspace_id: String = match sqlx::query_scalar("SELECT workspace_id FROM install_credentials WHERE token_hash=? AND skill_id=? AND repository=? AND agent=?")
+        .bind(hash(credential)).bind(&id).bind(&repository).bind(&agent).fetch_optional(&state.db).await {
+        Ok(Some(value)) => value,
+        Ok(None) => return error(StatusCode::UNAUTHORIZED, "That install credential cannot read this package."),
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "The install credential could not be checked."),
     };
     let sql = format!("{SKILL_SELECT} WHERE id=? AND workspace_id=? AND approved_at IS NOT NULL AND ring IN ('pilot','all')");
     match sqlx::query_as::<_, Skill>(&sql).bind(id).bind(workspace_id).fetch_optional(&state.db).await {
-        Ok(Some(skill)) if !json_array(&skill.repositories).contains(&repository) => error(StatusCode::FORBIDDEN, "This released version is not assigned to that repository."),
+        Ok(Some(skill)) if !repository_is_released(&skill, &repository) => error(StatusCode::FORBIDDEN, "This repository is not in the active release ring."),
+        Ok(Some(skill)) if !json_array(&skill.targets).contains(&agent) => error(StatusCode::FORBIDDEN, "This skill version has no adapter for that agent."),
         Ok(Some(skill)) if !package_is_valid(&state, &skill) => error(StatusCode::CONFLICT, "The signed package failed verification."),
-        Ok(Some(skill)) => Json(serde_json::json!({"schema":"team-agent-skill/v2","repository":repository,"package":skill_json(skill)})).into_response(),
+        Ok(Some(skill)) => Json(serde_json::json!({"schema":"team-agent-skill/v2","repository":repository,"agent":agent,"package":skill_json(skill)})).into_response(),
         Ok(None) => error(StatusCode::NOT_FOUND, "No reviewed released package matches that request."),
         Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "The package could not be installed."),
     }
@@ -797,20 +1002,21 @@ async fn index() -> Response {
 }
 async fn rate_limit(
     State(state): State<AppState>,
-    headers: HeaderMap,
+    _headers: HeaderMap,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
     if request.uri().path() == "/health" {
         return next.run(request).await;
     }
-    let ip = headers
-        .get("x-forwarded-for")
-        .and_then(|header| header.to_str().ok())
-        .and_then(|value| value.split(',').next())
-        .unwrap_or("local")
-        .trim()
-        .to_string();
+    // Forwarded headers are caller input at this service boundary. Rate limits
+    // deliberately use the connected peer until a trusted proxy integration is
+    // configured, so changing X-Forwarded-For cannot create a new allowance.
+    let ip = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|value| value.0.ip().to_string())
+        .unwrap_or_else(|| "unknown-peer".to_string());
     let denied = {
         let mut map = state.limits.lock().expect("rate limit lock");
         let entry = map.entry(ip).or_insert((Instant::now(), 0));
@@ -913,7 +1119,7 @@ async fn migrate_skills(db: &SqlitePool) -> Result<(), sqlx::Error> {
             .execute(db)
             .await?;
     }
-    sqlx::query("CREATE TABLE skills (workspace_id TEXT NOT NULL,id TEXT NOT NULL,name TEXT NOT NULL,version TEXT NOT NULL,summary TEXT NOT NULL,targets TEXT NOT NULL,ring TEXT NOT NULL,updated TEXT NOT NULL,owner TEXT NOT NULL,secrets TEXT NOT NULL,instructions TEXT NOT NULL,adapters TEXT NOT NULL,git_url TEXT NOT NULL,git_commit TEXT NOT NULL,source_verified_at TEXT NOT NULL DEFAULT '',package_digest TEXT NOT NULL,package_signature TEXT NOT NULL DEFAULT '',signer_public_key TEXT NOT NULL DEFAULT '',repositories TEXT NOT NULL,approved_by TEXT,approved_at TEXT,approval_id TEXT,reviewer_hash TEXT NOT NULL DEFAULT '',reviewer_used_at TEXT,created_at INTEGER NOT NULL,PRIMARY KEY(workspace_id,id),UNIQUE(workspace_id,name,version))").execute(db).await?;
+    sqlx::query("CREATE TABLE skills (workspace_id TEXT NOT NULL,id TEXT NOT NULL,name TEXT NOT NULL,version TEXT NOT NULL,summary TEXT NOT NULL,targets TEXT NOT NULL,ring TEXT NOT NULL,updated TEXT NOT NULL,owner TEXT NOT NULL,secrets TEXT NOT NULL,instructions TEXT NOT NULL,adapters TEXT NOT NULL,git_url TEXT NOT NULL,git_commit TEXT NOT NULL,source_path TEXT NOT NULL DEFAULT '',source_blob_sha TEXT NOT NULL DEFAULT '',source_verified_at TEXT NOT NULL DEFAULT '',package_digest TEXT NOT NULL,package_signature TEXT NOT NULL DEFAULT '',signer_public_key TEXT NOT NULL DEFAULT '',repositories TEXT NOT NULL,pilot_repositories TEXT NOT NULL DEFAULT '[]',approved_by TEXT,approved_at TEXT,approval_id TEXT,reviewer_hash TEXT NOT NULL DEFAULT '',reviewer_used_at TEXT,created_at INTEGER NOT NULL,PRIMARY KEY(workspace_id,id),UNIQUE(workspace_id,name,version))").execute(db).await?;
     if existing.is_some() {
         sqlx::query("INSERT OR IGNORE INTO skills (workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,package_digest,repositories,approved_by,approved_at,created_at) SELECT workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,package_digest,repositories,approved_by,approved_at,created_at FROM skills_legacy_v1").execute(db).await?;
         sqlx::query("DROP TABLE skills_legacy_v1")
@@ -941,6 +1147,14 @@ async fn initialise(db: &SqlitePool) -> Result<(), sqlx::Error> {
     ] {
         add_column(db, statement).await;
     }
+    for statement in [
+        "ALTER TABLE skills ADD COLUMN source_path TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE skills ADD COLUMN source_blob_sha TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE skills ADD COLUMN pilot_repositories TEXT NOT NULL DEFAULT '[]'",
+    ] {
+        add_column(db, statement).await;
+    }
+    sqlx::query("CREATE TABLE IF NOT EXISTS install_credentials (workspace_id TEXT NOT NULL,skill_id TEXT NOT NULL,repository TEXT NOT NULL,agent TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL)").execute(db).await?;
     Ok(())
 }
 fn signing_key(path: &FilePath) -> Result<(SigningKey, bool), String> {
@@ -1026,9 +1240,13 @@ async fn main() {
         .route("/api/review", get(review_package))
         .route("/api/review/approve", post(approve_review))
         .route("/api/skills/:id/ring", patch(change_ring))
+        .route(
+            "/api/skills/:id/install-credentials",
+            post(issue_install_credential),
+        )
         .route("/api/receipts", get(list_receipts).post(create_receipt))
         .route(
-            "/api/repositories/:repository/install/:id",
+            "/api/repositories/:repository/agents/:agent/install/:id",
             get(install_skill),
         )
         .route("/", get(index))
@@ -1046,10 +1264,13 @@ async fn main() {
         .await
         .expect("port binds");
     info!(port, "listening");
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .expect("server exits");
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .expect("server exits");
 }
 async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;

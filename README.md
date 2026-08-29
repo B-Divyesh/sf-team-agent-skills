@@ -3,9 +3,10 @@
 Publish reviewed agent skills and release them safely across repositories.
 
 Team Skills Registry is for engineering leads who maintain instructions for
-different coding agents. Each version contains its instructions, agent-specific
-adapters, verified GitHub commit, repository assignments, and secret reference
-names. The service signs the complete package before review.
+different coding agents. Each version is loaded from one JSON file at a
+verified GitHub commit. It contains instructions, agent-specific adapters,
+repository assignments, pilot membership, and secret reference names. The
+service signs the complete package and its Git blob identifier before review.
 
 ## Run locally
 
@@ -25,8 +26,10 @@ manager. Publishing creates a separate reviewer key for that one package.
 The reviewer opens `/review` with only that key. Approval consumes the key.
 
 The source verifier accepts public GitHub repository URLs. It confirms the
-exact commit through GitHub before signing. Set `GIT_VERIFY_API_BASE` only when
-running a compatible local verifier fixture.
+exact commit, reads the named JSON file at that commit, and signs the returned
+blob identifier. Browser fields cannot replace committed instructions or
+adapters. Set `GIT_VERIFY_API_BASE` only when running a compatible local
+verifier fixture.
 
 ## Try the sandbox
 
@@ -36,11 +39,16 @@ repository assignments, and receipts. Demo storage uses
 
 ## Release rules
 
-- Pilot and full release require a recorded review.
+- Pilot and full release require a recorded review. Pilot reaches only
+  `pilot_repositories`; full release reaches all `repositories`.
 - A receipt requires an installed release, assigned repository, and named agent.
 - Downloads contain the signed payload, digest, Ed25519 signature, and signer key.
+- An owner issues a separate install credential for each package, repository,
+  and agent. That credential cannot list, publish, review, or release packages.
 - `/api/trust` exposes the signer key and fingerprint for consumer pinning.
 - Workspace identifiers are isolated, so teams may use the same package id.
+- The public 40-request limit uses the connected peer, not caller-provided
+  `X-Forwarded-For` values.
 
 Every statement above has an exact test in [.factory/claims.json](.factory/claims.json).
 
@@ -63,12 +71,16 @@ cargo build --release --locked
 
 Create a workspace with `POST /api/session`. Send its owner key as
 `Authorization: Bearer <key>` to registry endpoints. Publish at
-`POST /api/skills`. The response contains the package's one-time reviewer key.
+`POST /api/skills` with `git_url`, `git_commit`, and `source_path`; the source
+file follows [`examples/skill-package.json`](examples/skill-package.json). The
+response contains the package's one-time reviewer key.
 
 A reviewer sends that key to `GET /api/review`, then approves with
 `POST /api/review/approve`. The owner releases it with
-`PATCH /api/skills/:id/ring`. Assigned agents fetch it from
-`GET /api/repositories/:repository/install/:id`.
+`PATCH /api/skills/:id/ring`, then issues an adapter credential with
+`POST /api/skills/:id/install-credentials`. Assigned agents fetch with only
+that scoped credential from
+`GET /api/repositories/:repository/agents/:agent/install/:id`.
 
 ## Managed plan
 

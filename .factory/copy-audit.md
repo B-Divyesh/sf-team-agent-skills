@@ -14,7 +14,7 @@ No banned term appears.
 | Original generated artwork showing the release workflow. | 7 | pass |
 | Check the package before an agent installs it | 8 | pass |
 | Publish, approve, then install | 4 | pass |
-| Add instructions, agent adapters, a verified GitHub commit, and repository assignments. | 11 | pass |
+| Commit one JSON skill package with its repository assignments. | 9 | pass |
 | Name the reviewer before the version enters pilot or full release. | 11 | pass |
 | Agents fetch one assigned package and save a signed receipt. | 10 | pass |
 | Keep credentials out of instructions | 5 | pass |

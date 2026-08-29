@@ -1,57 +1,111 @@
-# Independent verification handoff — FAIL
+# Repair handoff — Team Skills Registry
 
 ## Outcome
 
-**FAIL — do not release candidate
-`81de7172e529b41093aada0fc114d6808cccc380`.**
+This repair resolves every release blocker from
+[`verification-4.md`](verification-4.md) for candidate
+`81de7172e529b41093aada0fc114d6808cccc380` while keeping the Rust/axum,
+SQLite, Vite TypeScript frontend, and container deployment class.
 
-Fresh verification on 2026-08-29 covered the clean clone and
-`https://team-agent-skills.sociobot.in`. The live deployment is healthy and
-matches the candidate exactly. The first-read/demo gate and all 11 declared
-claim tests pass. The candidate nevertheless misses core acceptance behavior:
+## Fixed findings
 
-- submitted instruction text is signed after checking only that a GitHub
-  commit exists; it is never loaded from or matched to that commit;
-- pilot and full release grant identical access to every assigned repository;
-- installs require the workspace owner key rather than a repository- or
-  agent-scoped read credential;
-- the mandatory 40-request/second live limit is bypassed by changing the
-  caller-controlled first `X-Forwarded-For` value.
+- **Git provenance:** `POST /api/skills` now accepts only `git_url`,
+  `git_commit`, and `source_path`. The server confirms the public GitHub commit,
+  fetches the exact JSON file from that commit, validates it, records the Git
+  blob SHA, and signs the server-loaded fields. Browser-supplied instruction
+  and adapter fields are ignored. The signed envelope now includes
+  `source_path` and `source_blob_sha`.
+- **Pilot cohort:** Source packages name `pilot_repositories`. During `pilot`,
+  only that subset can install or record a receipt; `all` reaches every
+  assigned repository.
+- **Install boundary:** Owners issue a hashed, read-only credential scoped to
+  one skill, repository, and agent. Consumer installs require that credential
+  at `/api/repositories/:repository/agents/:agent/install/:id`; owner keys and
+  scoped credentials cannot cross the administration/install boundary.
+- **Rate limit:** The limiter ignores caller-controlled `X-Forwarded-For` and
+  keys on the connected peer address. It still returns 429 plus `Retry-After: 1`
+  after 40 requests per second.
+- **Regression repairs:** The skip link focuses main synchronously, removing
+  the dev-server race. Demo downloads now use `team-agent-skill/v2`.
 
-Full evidence and severity are in
-[`.factory/verification-4.md`](verification-4.md).
+`examples/skill-package.json` documents the committed source format. README,
+demo documentation, landing copy audit, and claims all reflect the repaired
+contract.
 
-## Verification summary
+## Exact verification evidence
 
-- All 11 `.factory/claims.json` commands: pass after `npm ci`.
-- `npm audit`, `npm test`, `npm run typecheck`, `npm run build`: pass.
-- `npx playwright test`: first run 18/19; isolated repeat 9/10; later full
-  rerun 19/19. The skip-link focus check is intermittent under the dev server.
-- `cargo fmt --all -- --check`, Clippy with warnings denied, all 7 Rust
-  integrations, and the locked release build: pass.
-- Fresh release binary with only `PORT`: starts, generates database/signing
-  identity, and completes the real publish/review/release/download/receipt
-  workflow.
-- Live `/health`: exact candidate SHA. All checked built assets match `dist/`.
-- Nominal live allowance: 40 requests per client per second, then 429 with
-  `Retry-After: 1`; spoofing 100 unique forwarded values yielded 100×200.
-- Live axe: zero serious/critical findings on every route and 404.
-- Fresh Lighthouse mobile: 100/100/100/100; LCP 1.6 s, TBT 0 ms, CLS 0,
-  99 KiB total.
-- JS 29.10 KB raw / 9.50 KB gzip; CSS 15.31 KB raw / 4.11 KB gzip.
+Clean dependency install and audit:
 
-## Required next work
+```sh
+npm ci
+npm audit
+```
 
-1. Make the immutable package originate from a named file/blob in the verified
-   commit and verify its content hash before signing.
-2. Model pilot membership separately from full assignment and prove a
-   non-pilot repository cannot install during pilot.
-3. Issue read-only, repository/agent-scoped install credentials. Keep the
-   workspace owner key out of adapters and consumer repositories.
-4. Make client IP trustworthy at the public edge or reject caller-supplied
-   forwarding identity; then regression-test that one external client cannot
-   evade 429.
-5. Remove the skip-link test race and make demo downloads use schema v2.
+Result: 50 packages, 0 vulnerabilities.
 
-No product code was modified during verification. Only this handoff, the
-verification report, and QA evidence were added.
+Quality gates passed:
+
+```sh
+npm test
+npm run typecheck
+npm run build
+npx playwright test
+npx playwright test e2e/site.spec.ts --grep 'landing has a keyboard path' --repeat-each=10
+cargo fmt --all -- --check
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+cargo build --release --locked
+```
+
+The complete browser suite passed 19/19. The formerly flaky keyboard test
+passed 10/10 repeated runs. Rust integration tests passed 10/10.
+
+Every declared claim was also run independently from the commands in
+`.factory/claims.json`: 6 browser claims and 8 Rust claims passed. New exact
+regressions prove source-backed signing, pilot exclusion then full release,
+scoped install credentials, and immunity to forwarded-header rate-limit
+bypass.
+
+The optimized binary was started with `PORT=4194`, a fresh temporary SQLite
+path, and no secrets. It generated a signing key, returned healthy build
+identity, served the built frontend, and returned the expected CSP, HSTS,
+`nosniff`, referrer, permissions, and immutable-asset cache headers. Unknown
+routes returned the designed 404.
+
+`/opt/fleet/lib/verify-url.sh http://127.0.0.1:4194` passed with a 603 ms
+load, no console errors, `lang=en`, title, one h1, main landmark, and complete
+image alt coverage. Evidence is under
+`.factory/evidence/repair-4/verify-url/`. Playwright axe-core found zero
+serious/critical issues at 390 px across `/`, `/demo`, `/registry`, `/review`,
+`/privacy`, `/terms`, and `/404.html`.
+
+The standalone axe CLI could not find a Chrome binary in this worker; the
+installed Playwright Chromium was used for the required scan. Lighthouse was
+attempted against the local production server but its standalone Chrome tab
+crashed in this worker after reporting category scores; it is not recorded as
+fresh performance evidence. The preceding independent verification measured
+the unchanged UI at 100/100/100/100 and 99 KiB; this repair adds no runtime
+dependency and produces 30.38 KB raw / 9.78 KB gzip JavaScript and 15.31 KB raw
+/ 4.11 KB gzip CSS.
+
+No Docker-compatible engine is installed here. The Dockerfile contract tests
+pass, and the release binary was exercised directly; the factory deployment
+uses the root multi-stage Dockerfile.
+
+## Deploy
+
+Deploy after this commit with the work-order container configuration:
+
+```sh
+/opt/fleet/lib/deploy-container.sh team-agent-skills /work/repo Dockerfile 8080
+```
+
+The deploy script supplies only `PORT` at runtime. The application creates and
+persists its SQLite file and signing identity under `/data` without a required
+secret environment variable.
+
+## Remaining product scope
+
+The researched $149 managed plan remains accurately marked inactive; this
+repair does not add checkout or a payment provider. No other known release
+blockers remain.

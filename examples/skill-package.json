@@ -1,0 +1,15 @@
+{
+  "id": "secure-commit",
+  "name": "Secure commit",
+  "version": "1.0.0",
+  "summary": "Check a release before a commit.",
+  "targets": ["Codex"],
+  "owner": "Mina Patel",
+  "secrets": ["GITHUB_TOKEN"],
+  "instructions": "Inspect the staged diff. Stop when it contains a credential. Run the repository test command.",
+  "adapters": {
+    "Codex": "Read AGENTS.md and run the configured test command."
+  },
+  "repositories": ["atlas-api", "web-console"],
+  "pilot_repositories": ["atlas-api"]
+}

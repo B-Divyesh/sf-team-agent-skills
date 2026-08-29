@@ -50,10 +50,10 @@
   },
   {
     "id": "git-signed-package",
-    "claim": "Published packages use a verified GitHub commit and a signature over every immutable distributed field.",
+    "claim": "Published packages are loaded from one verified GitHub JSON file and signed with its blob identifier.",
     "where": "README, landing release path, registry package detail",
     "test": "cargo test --locked claim_git_signed_package",
-    "sandbox": "fresh server with a recorded GitHub verifier fixture; reject invented source; assert distinct digests; decode the signed payload and verify its SHA-256 digest and Ed25519 signature"
+    "sandbox": "fresh server with a recorded GitHub verifier fixture; reject invented source; ignore forged submitted instruction fields; assert the signed payload records the verified source path and blob identifier"
   },
   {
     "id": "independent-one-time-review",
@@ -68,6 +68,27 @@
     "where": "README, registry receipt form, landing release path",
     "test": "cargo test --locked claim_governed_execution_receipt",
     "sandbox": "fresh server; reject draft, review-ring, wrong-agent, and wrong-repository receipts; assert accepted receipt contains approval, package signature, and receipt signature"
+  },
+  {
+    "id": "pilot-ring-access",
+    "claim": "Pilot releases reach only their named pilot repositories; full release reaches every assigned repository.",
+    "where": "registry release control and README",
+    "test": "cargo test --locked claim_pilot_ring_access",
+    "sandbox": "fresh server; approve a two-repository package, enter pilot, assert the non-pilot repository is forbidden, then release to all and assert it can install"
+  },
+  {
+    "id": "scoped-install-credentials",
+    "claim": "An install credential reads only one package for one repository and agent.",
+    "where": "registry install controls and README",
+    "test": "cargo test --locked claim_scoped_install_credentials",
+    "sandbox": "fresh server; issue one scoped credential and assert the owner key cannot install, the credential cannot administer, and wrong repository or agent is rejected"
+  },
+  {
+    "id": "peer-rate-limit",
+    "claim": "Changing a caller-supplied forwarded header cannot bypass the 40-request limit.",
+    "where": "README",
+    "test": "cargo test --locked claim_peer_rate_limit",
+    "sandbox": "fresh server; make 40 public requests, then vary X-Forwarded-For and assert every excess request returns 429 with Retry-After"
   },
   {
     "id": "managed-plan-status",

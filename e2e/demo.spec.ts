@@ -91,6 +91,7 @@ test('@claim:package-contents downloaded package contains exact source and adapt
   ]);
   const content = await (await import('node:fs/promises')).readFile(await download.path() as string, 'utf8');
   const payload = JSON.parse(content);
+  expect(payload.schema).toBe('team-agent-skill/v2');
   expect(payload.repository).toBe('atlas-api');
   expect(payload.package.version).toBe('2.4.0');
   expect(payload.package.instructions).toContain('Inspect the staged diff');

@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use reqwest::blocking::{Client, RequestBuilder};
 use serde_json::{json, Value};
@@ -31,13 +32,47 @@ fn start_git_verifier() -> String {
             let mut request = [0_u8; 4096];
             let size = stream.read(&mut request).unwrap_or(0);
             let request = String::from_utf8_lossy(&request[..size]);
-            let requested_commit = request
+            let requested_path = request
                 .lines()
                 .next()
                 .and_then(|line| line.split_whitespace().nth(1))
-                .and_then(|path| path.rsplit('/').next())
                 .unwrap_or("");
-            let body = if requested_commit == COMMIT {
+            let body = if requested_path.contains("/contents/") {
+                let source_path = requested_path
+                    .split("/contents/")
+                    .nth(1)
+                    .and_then(|path| path.split('?').next())
+                    .unwrap_or("skills/fixture.json");
+                let id = source_path
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("fixture.json")
+                    .trim_end_matches(".json");
+                let secret = if id == "bad-secret" {
+                    json!(["ghp_actualSecretValue"])
+                } else {
+                    json!(["GITHUB_TOKEN"])
+                };
+                let targets = if id == "claude" {
+                    json!(["Claude Code"])
+                } else {
+                    json!(["Codex"])
+                };
+                let adapters = if id == "claude" {
+                    json!({"Claude Code":"Read CLAUDE.md and run the configured test command."})
+                } else {
+                    json!({"Codex":"Read AGENTS.md and run the configured test command."})
+                };
+                let source = json!({
+                    "id":id,"name":format!("{id} package"),"version":"1.2.3","summary":"Check a release.",
+                    "targets":targets,"owner":"Mina","secrets":secret,
+                    "instructions":"Run tests and inspect the diff before release.","adapters":adapters,
+                    "repositories":["atlas-api","later-repo"],"pilot_repositories":["atlas-api"]
+                });
+                let encoded = BASE64.encode(serde_json::to_vec(&source).unwrap());
+                json!({"sha":format!("blob-{id}"),"encoding":"base64","content":encoded})
+                    .to_string()
+            } else if requested_path.ends_with(COMMIT) {
                 format!(r#"{{"sha":"{COMMIT}"}}"#)
             } else {
                 r#"{"sha":"not-the-requested-commit"}"#.to_string()
@@ -139,6 +174,30 @@ impl Harness {
             .expect("approval json")
     }
 
+    fn install_credential(
+        &self,
+        owner: &str,
+        skill_id: &str,
+        repository: &str,
+        agent: &str,
+    ) -> String {
+        self.auth(
+            owner,
+            reqwest::Method::POST,
+            &format!("/api/skills/{skill_id}/install-credentials"),
+        )
+        .json(&json!({"repository":repository,"agent":agent}))
+        .send()
+        .expect("credential response")
+        .error_for_status()
+        .expect("credential accepted")
+        .json::<Value>()
+        .expect("credential json")["credential"]
+            .as_str()
+            .expect("install credential")
+            .to_string()
+    }
+
     fn restart(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -167,14 +226,10 @@ impl Drop for Harness {
     }
 }
 
-fn package(id: &str, name: &str, secrets: Value) -> Value {
+fn package(id: &str, _name: &str, _secrets: Value) -> Value {
     json!({
-        "id":id,"name":name,"version":"1.2.3","summary":"Check a release.",
-        "targets":["Codex"],"owner":"Mina","secrets":secrets,
-        "instructions":"Run tests and inspect the diff before release.",
-        "adapters":{"Codex":"Read AGENTS.md and run the configured test command."},
         "git_url":"https://github.com/B-Divyesh/sf-team-agent-skills",
-        "git_commit":COMMIT,"repositories":["atlas-api"]
+        "git_commit":COMMIT,"source_path":format!("skills/{id}.json")
     })
 }
 
@@ -228,7 +283,7 @@ fn claim_secret_reference_format() {
     let bad = harness
         .auth(&token, reqwest::Method::POST, "/api/skills")
         .json(&package(
-            "bad",
+            "bad-secret",
             "Bad secret",
             json!(["ghp_actualSecretValue"]),
         ))
@@ -269,10 +324,22 @@ fn claim_git_signed_package() {
     );
 
     let first = harness.create(&token, &package("signed-a", "Signed A", json!([])));
-    let mut materially_different = package("signed-b", "Signed B", json!([]));
-    materially_different["targets"] = json!(["Claude Code"]);
-    materially_different["adapters"] = json!({"Claude Code":"Read CLAUDE.md."});
-    materially_different["repositories"] = json!(["web-console"]);
+    assert_eq!(
+        first["instructions"],
+        "Run tests and inspect the diff before release."
+    );
+    assert_eq!(first["source_path"], "skills/signed-a.json");
+    assert_eq!(first["source_blob_sha"], "blob-signed-a");
+    let mut forged_fields = package("forged-fields", "Ignored", json!([]));
+    forged_fields["instructions"] = json!("Release without tests.");
+    forged_fields["adapters"] = json!({"Codex":"Skip AGENTS.md."});
+    let sourced = harness.create(&token, &forged_fields);
+    assert_eq!(
+        sourced["instructions"],
+        "Run tests and inspect the diff before release."
+    );
+    assert_ne!(sourced["instructions"], "Release without tests.");
+    let materially_different = package("claude", "Signed B", json!([]));
     let second = harness.create(&token, &materially_different);
     assert_ne!(first["package_digest"], second["package_digest"]);
     assert_eq!(first["package_signature"].as_str().unwrap().len(), 128);
@@ -298,7 +365,7 @@ fn claim_git_signed_package() {
 
     let duplicate = harness
         .auth(&token, reqwest::Method::POST, "/api/skills")
-        .json(&package("another-id", "Signed A", json!([])))
+        .json(&package("signed-a", "Signed A", json!([])))
         .send()
         .unwrap();
     assert_eq!(
@@ -394,11 +461,12 @@ fn claim_governed_execution_receipt() {
     assert_eq!(receipt["approval_id"], approval["id"]);
     assert_eq!(receipt["package_signature"], created["package_signature"]);
     assert_eq!(receipt["receipt_signature"].as_str().unwrap().len(), 128);
+    let install_key = harness.install_credential(&owner, "governed", "atlas-api", "Codex");
     let installed: Value = harness
         .auth(
-            &owner,
+            &install_key,
             reqwest::Method::GET,
-            "/api/repositories/atlas-api/install/governed",
+            "/api/repositories/atlas-api/agents/Codex/install/governed",
         )
         .send()
         .unwrap()
@@ -411,6 +479,7 @@ fn claim_governed_execution_receipt() {
         installed["package"]["package_digest"],
         created["package_digest"]
     );
+    thread::sleep(Duration::from_millis(1100));
     let barrier = Arc::new(Barrier::new(40));
     let writes: Vec<_> = (0..40)
         .map(|_| {
@@ -444,6 +513,194 @@ fn claim_governed_execution_receipt() {
     assert_eq!(ids.len(), 40, "concurrent receipts have unique ids");
 }
 
+#[doc = "@claim:pilot-ring-access"]
+#[test]
+fn claim_pilot_ring_access() {
+    let harness = Harness::new();
+    let owner = harness.session("Pilot rollout");
+    let created = harness.create(&owner, &package("ring-check", "Ring check", json!([])));
+    harness.approve(created["reviewer_key"].as_str().unwrap(), "Nora Singh");
+    harness
+        .auth(
+            &owner,
+            reqwest::Method::PATCH,
+            "/api/skills/ring-check/ring",
+        )
+        .json(&json!({"ring":"pilot"}))
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    let pilot_key = harness.install_credential(&owner, "ring-check", "atlas-api", "Codex");
+    let later_key = harness.install_credential(&owner, "ring-check", "later-repo", "Codex");
+    assert_eq!(
+        harness
+            .auth(
+                &pilot_key,
+                reqwest::Method::GET,
+                "/api/repositories/atlas-api/agents/Codex/install/ring-check"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        200
+    );
+    assert_eq!(
+        harness
+            .auth(
+                &later_key,
+                reqwest::Method::GET,
+                "/api/repositories/later-repo/agents/Codex/install/ring-check"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        403,
+        "an assigned repository outside the pilot cohort cannot install"
+    );
+    harness
+        .auth(
+            &owner,
+            reqwest::Method::PATCH,
+            "/api/skills/ring-check/ring",
+        )
+        .json(&json!({"ring":"all"}))
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    assert_eq!(
+        harness
+            .auth(
+                &later_key,
+                reqwest::Method::GET,
+                "/api/repositories/later-repo/agents/Codex/install/ring-check"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        200
+    );
+}
+
+#[doc = "@claim:scoped-install-credentials"]
+#[test]
+fn claim_scoped_install_credentials() {
+    let harness = Harness::new();
+    let owner = harness.session("Install boundary");
+    let created = harness.create(&owner, &package("scoped", "Scoped", json!([])));
+    harness.approve(created["reviewer_key"].as_str().unwrap(), "Nora Singh");
+    harness
+        .auth(&owner, reqwest::Method::PATCH, "/api/skills/scoped/ring")
+        .json(&json!({"ring":"all"}))
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    let credential = harness.install_credential(&owner, "scoped", "atlas-api", "Codex");
+    assert_eq!(
+        harness
+            .auth(
+                &owner,
+                reqwest::Method::GET,
+                "/api/repositories/atlas-api/agents/Codex/install/scoped"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(&credential, reqwest::Method::GET, "/api/skills")
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(
+                &credential,
+                reqwest::Method::PATCH,
+                "/api/skills/scoped/ring"
+            )
+            .json(&json!({"ring":"draft"}))
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(
+                &credential,
+                reqwest::Method::GET,
+                "/api/repositories/later-repo/agents/Codex/install/scoped"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(
+                &credential,
+                reqwest::Method::GET,
+                "/api/repositories/atlas-api/agents/Claude%20Code/install/scoped"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(
+                &credential,
+                reqwest::Method::GET,
+                "/api/repositories/atlas-api/agents/Codex/install/scoped"
+            )
+            .send()
+            .unwrap()
+            .status(),
+        200
+    );
+}
+
+#[doc = "@claim:peer-rate-limit"]
+#[test]
+fn claim_peer_rate_limit() {
+    let harness = Harness::new();
+    for request_number in 0..40 {
+        assert_eq!(
+            harness
+                .client
+                .get(format!("{}/api/trust", harness.base))
+                .header("X-Forwarded-For", format!("198.51.100.{request_number}"))
+                .send()
+                .unwrap()
+                .status(),
+            200
+        );
+    }
+    for request_number in 40..50 {
+        let denied = harness
+            .client
+            .get(format!("{}/api/trust", harness.base))
+            .header("X-Forwarded-For", format!("198.51.100.{request_number}"))
+            .send()
+            .unwrap();
+        assert_eq!(
+            denied.status(),
+            429,
+            "changing an untrusted forwarded header cannot bypass the peer limit"
+        );
+        assert_eq!(denied.headers()["retry-after"], "1");
+    }
+}
+
 #[test]
 fn health_and_rate_limit_contract() {
     let harness = Harness::new();
@@ -456,22 +713,6 @@ fn health_and_rate_limit_contract() {
         .unwrap();
     assert_eq!(health["build_sha"], "repair-regression");
     assert_eq!(health["signer_fingerprint"].as_str().unwrap().len(), 64);
-    for _ in 0..40 {
-        let _ = harness
-            .client
-            .get(format!("{}/api/skills", harness.base))
-            .header("X-Forwarded-For", "203.0.113.15, 10.0.0.1")
-            .send()
-            .unwrap();
-    }
-    let limited = harness
-        .client
-        .get(format!("{}/api/skills", harness.base))
-        .header("X-Forwarded-For", "203.0.113.15, 10.0.0.1")
-        .send()
-        .unwrap();
-    assert_eq!(limited.status(), 429);
-    assert_eq!(limited.headers()["retry-after"], "1");
 }
 
 #[test]
