@@ -148,6 +148,13 @@ impl Harness {
     }
 
     fn session(&self, name: &str) -> String {
+        self.session_credentials(name)["token"]
+            .as_str()
+            .expect("owner key")
+            .to_string()
+    }
+
+    fn session_credentials(&self, name: &str) -> Value {
         self.client
             .post(format!("{}/api/session", self.base))
             .json(&json!({"name":name}))
@@ -156,10 +163,7 @@ impl Harness {
             .error_for_status()
             .expect("workspace accepted")
             .json::<Value>()
-            .expect("workspace json")["token"]
-            .as_str()
-            .expect("owner key")
-            .to_string()
+            .expect("workspace json")
     }
 
     fn auth(&self, token: &str, method: reqwest::Method, path: &str) -> RequestBuilder {
@@ -233,6 +237,47 @@ impl Harness {
         }
         panic!("restarted server did not become healthy");
     }
+}
+
+#[doc = "@claim:workspace-recovery"]
+#[test]
+fn claim_workspace_recovery() {
+    let harness = Harness::new();
+    let credentials = harness.session_credentials("Recoverable team");
+    let old_owner = credentials["token"].as_str().unwrap();
+    let recovery = credentials["recovery_key"].as_str().unwrap();
+    let database = std::fs::read(harness.data.path().join("registry.db")).unwrap();
+    let raw = String::from_utf8_lossy(&database);
+    assert!(!raw.contains(old_owner));
+    assert!(!raw.contains(recovery));
+    let recovered: Value = harness
+        .client
+        .post(format!("{}/api/session/recover", harness.base))
+        .json(&json!({"recovery_key":recovery}))
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .unwrap();
+    let new_owner = recovered["token"].as_str().unwrap();
+    assert_ne!(new_owner, old_owner);
+    assert_eq!(
+        harness
+            .auth(old_owner, reqwest::Method::GET, "/api/skills")
+            .send()
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        harness
+            .auth(new_owner, reqwest::Method::GET, "/api/skills")
+            .send()
+            .unwrap()
+            .status(),
+        200
+    );
 }
 
 impl Drop for Harness {
@@ -693,6 +738,44 @@ fn claim_scoped_install_credentials() {
     );
 }
 
+#[test]
+fn claim_repo_native_install() {
+    let harness = Harness::new();
+    let owner = harness.session("Native install");
+    let created = harness.create(&owner, &package("native", "Native", json!([])));
+    harness.approve(created["reviewer_key"].as_str().unwrap(), "Nora Singh");
+    harness
+        .auth(&owner, reqwest::Method::PATCH, "/api/skills/native/ring")
+        .json(&json!({"ring":"all"}))
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    let credential = harness.install_credential(&owner, "native", "atlas-api", "Codex");
+    let installed: Value = harness
+        .auth(
+            &credential,
+            reqwest::Method::GET,
+            "/api/repositories/atlas-api/agents/Codex/install/native",
+        )
+        .send()
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .unwrap();
+    assert_eq!(installed["native_file"]["path"], "AGENTS.md");
+    let content = installed["native_file"]["content"].as_str().unwrap();
+    assert!(content.contains("Run tests and inspect the diff before release."));
+    assert!(content.contains("Read AGENTS.md and run the configured test command."));
+    assert!(content.contains(created["package_digest"].as_str().unwrap()));
+    assert!(content.contains(created["package_signature"].as_str().unwrap()));
+    assert_eq!(
+        installed["native_file"]["install_command"],
+        "cp AGENTS.md atlas-api/AGENTS.md"
+    );
+}
+
 #[doc = "@claim:trusted-client-rate-limit"]
 #[test]
 fn claim_trusted_client_rate_limit() {
@@ -799,8 +882,9 @@ fn claim_private_git_source() {
     );
 }
 
+#[doc = "@claim:trust-endpoint"]
 #[test]
-fn health_and_rate_limit_contract() {
+fn claim_trust_endpoint() {
     let harness = Harness::new();
     let health: Value = harness
         .client
@@ -811,10 +895,51 @@ fn health_and_rate_limit_contract() {
         .unwrap();
     assert_eq!(health["build_sha"], "repair-regression");
     assert_eq!(health["signer_fingerprint"].as_str().unwrap().len(), 64);
+    let trust: Value = harness
+        .client
+        .get(format!("{}/api/trust", harness.base))
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    let public_key = hex::decode(trust["public_key"].as_str().unwrap()).unwrap();
+    assert_eq!(
+        format!("{:x}", Sha256::digest(public_key)),
+        trust["fingerprint"]
+    );
 }
 
 #[test]
-fn signing_identity_and_data_survive_restart() {
+fn unknown_route_returns_complete_static_404() {
+    if !Path::new("dist/404.html").exists() {
+        return;
+    }
+    let harness = Harness::new();
+    let response = harness
+        .client
+        .get(format!("{}/definitely-missing-review-route", harness.base))
+        .send()
+        .unwrap();
+    assert_eq!(response.status(), 404);
+    let html = response.text().unwrap();
+    for marker in [
+        "<title>Page not found",
+        "name=\"description\"",
+        "rel=\"canonical\"",
+        "property=\"og:image\"",
+        "name=\"twitter:image\"",
+        "rel=\"icon\"",
+        "rel=\"apple-touch-icon\"",
+    ] {
+        assert!(html.contains(marker), "404 metadata missing {marker}");
+    }
+    assert!(html.contains("href=\"/privacy\""));
+    assert!(html.contains("href=\"/terms\""));
+}
+
+#[doc = "@claim:persistent-data-and-signing-key"]
+#[test]
+fn claim_persistent_data_and_signing_key() {
     let mut harness = Harness::new();
     let token = harness.session("Persistent team");
     let before: Value = harness
@@ -842,4 +967,54 @@ fn signing_identity_and_data_survive_restart() {
         .json()
         .unwrap();
     assert!(records.is_empty(), "workspace owner key survives restart");
+}
+
+#[doc = "@claim:port-configuration"]
+#[test]
+fn claim_port_configuration() {
+    let data = tempfile::tempdir().unwrap();
+    let port = free_port();
+    let mut child = start_server(&data.path().join("port.db"), port);
+    let client = Client::new();
+    let url = format!("http://127.0.0.1:{port}/health");
+    let mut reached = false;
+    for _ in 0..100 {
+        if client
+            .get(&url)
+            .send()
+            .is_ok_and(|response| response.status() == 200)
+        {
+            reached = true;
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    assert!(reached, "the selected PORT serves /health");
+}
+
+#[doc = "@claim:database-path-configuration"]
+#[test]
+fn claim_database_path_configuration() {
+    let data = tempfile::tempdir().unwrap();
+    let database = data.path().join("chosen").join("registry.sqlite");
+    std::fs::create_dir_all(database.parent().unwrap()).unwrap();
+    let port = free_port();
+    let mut child = start_server(&database, port);
+    let client = Client::new();
+    for _ in 0..100 {
+        if client
+            .get(format!("http://127.0.0.1:{port}/health"))
+            .send()
+            .is_ok_and(|response| response.status() == 200)
+        {
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    assert!(database.exists());
+    assert!(database.with_file_name("registry-signing.key").exists());
 }

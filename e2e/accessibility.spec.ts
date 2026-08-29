@@ -65,5 +65,19 @@ test('mobile controls expose state, fit, and meet the 44px target', async ({ pag
   }));
   expect(boxes.every(box => box.height >= 44 && box.right <= 390), JSON.stringify(boxes)).toBe(true);
   await expect(page.getByRole('button', { name:'Secure commit' })).toHaveAttribute('aria-pressed','true');
-  await expect(page.getByRole('button', { name:'All repos' })).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('button', { name:'Release to all assigned repositories' })).toHaveAttribute('aria-pressed','true');
 });
+
+for (const width of [390, 1366]) {
+  test(`publish textareas use the designed focus ring at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/demo');
+    await page.getByRole('button', { name: 'Publish a version' }).click();
+    for (const textarea of await page.locator('.publish-form textarea').all()) {
+      await textarea.focus();
+      const style = await textarea.evaluate(element => ({ width: getComputedStyle(element).outlineWidth, color: getComputedStyle(element).outlineColor }));
+      expect(parseFloat(style.width)).toBeGreaterThanOrEqual(3);
+      expect(style.color).not.toBe('rgb(0, 0, 0)');
+    }
+  });
+}

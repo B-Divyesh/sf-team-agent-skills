@@ -39,6 +39,10 @@ from the same layer; approval rings change a physical stamp. Motion stays at
 180–240ms and uses transform/opacity only. With reduced motion, all changes are
 instant and the diorama has no drift.
 
+Recovery keys and repository-native exports use bordered paper receipts within
+the same desk metaphor. They add operational controls without introducing a
+generic dashboard card style.
+
 ## Assets and provenance
 
 The hero art is an original generated paper-cut release desk: repository drawers,

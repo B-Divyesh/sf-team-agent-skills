@@ -71,6 +71,10 @@ struct NewSession {
     name: String,
 }
 #[derive(Deserialize)]
+struct RecoverSession {
+    recovery_key: String,
+}
+#[derive(Deserialize)]
 struct RingChange {
     ring: String,
 }
@@ -114,6 +118,31 @@ struct GitCredentialBindingRequest {
 struct InstallCredentialRequest {
     repository: String,
     agent: String,
+}
+
+fn native_file_name(agent: &str) -> &'static str {
+    match agent.to_ascii_lowercase().as_str() {
+        "codex" => "AGENTS.md",
+        "claude" | "claude code" => "CLAUDE.md",
+        "gemini" | "gemini cli" => "GEMINI.md",
+        _ => "AGENT_INSTRUCTIONS.md",
+    }
+}
+
+fn native_file(skill: &Skill, repository: &str, agent: &str) -> serde_json::Value {
+    let adapters = json_map(&skill.adapters);
+    let file_name = native_file_name(agent);
+    let adapter = adapters.get(agent).cloned().unwrap_or_default();
+    let content = format!(
+        "# {}\n\n{}\n\n## {} instructions\n\n{}\n\n---\nPackage: {} v{}\nRepository: {}\nGit commit: {}\nPackage digest: {}\nSignature: {}\n",
+        skill.name, skill.instructions, agent, adapter, skill.id, skill.version,
+        repository, skill.git_commit, skill.package_digest, skill.package_signature
+    );
+    serde_json::json!({
+        "path": file_name,
+        "content": content,
+        "install_command": format!("cp {} {}/{}", file_name, repository, file_name)
+    })
 }
 
 #[derive(Serialize)]
@@ -346,7 +375,7 @@ async fn owner_workspace(
         })?
         .ok_or((
             StatusCode::UNAUTHORIZED,
-            "That workspace key is not active.",
+            "That workspace owner key is not active.",
         ))
 }
 
@@ -356,22 +385,59 @@ async fn create_session(State(state): State<AppState>, Json(input): Json<NewSess
     }
     let id = format!("ws-{}", random_hex(8));
     let token = format!("tsr_{}", random_hex(24));
-    match sqlx::query("INSERT INTO workspaces (id,name,token_hash,created_at) VALUES (?,?,?,?)")
-        .bind(&id)
-        .bind(input.name.trim())
-        .bind(hash(&token))
-        .bind(Utc::now().timestamp())
-        .execute(&state.db)
-        .await
+    let recovery_key = format!("tsr_recovery_{}", random_hex(24));
+    match sqlx::query(
+        "INSERT INTO workspaces (id,name,token_hash,recovery_hash,created_at) VALUES (?,?,?,?,?)",
+    )
+    .bind(&id)
+    .bind(input.name.trim())
+    .bind(hash(&token))
+    .bind(hash(&recovery_key))
+    .bind(Utc::now().timestamp())
+    .execute(&state.db)
+    .await
     {
         Ok(_) => (
             StatusCode::CREATED,
-            Json(serde_json::json!({"workspace_id":id,"token":token})),
+            Json(serde_json::json!({"workspace_id":id,"token":token,"recovery_key":recovery_key})),
         )
             .into_response(),
         Err(_) => error(
             StatusCode::INTERNAL_SERVER_ERROR,
             "The private workspace could not be created.",
+        ),
+    }
+}
+
+async fn recover_session(
+    State(state): State<AppState>,
+    Json(input): Json<RecoverSession>,
+) -> Response {
+    if !input.recovery_key.starts_with("tsr_recovery_") || input.recovery_key.len() > 128 {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "Enter a valid workspace recovery key.",
+        );
+    }
+    let new_token = format!("tsr_{}", random_hex(24));
+    match sqlx::query("UPDATE workspaces SET token_hash=? WHERE recovery_hash=?")
+        .bind(hash(&new_token))
+        .bind(hash(input.recovery_key.trim()))
+        .execute(&state.db)
+        .await
+    {
+        Ok(done) if done.rows_affected() == 1 => Json(serde_json::json!({
+            "token": new_token,
+            "message": "The previous workspace owner key is now inactive."
+        }))
+        .into_response(),
+        Ok(_) => error(
+            StatusCode::UNAUTHORIZED,
+            "That workspace recovery key is not active.",
+        ),
+        Err(_) => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "The workspace owner key could not be rotated.",
         ),
     }
 }
@@ -1143,13 +1209,36 @@ async fn install_skill(
         Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "The install credential could not be checked."),
     };
     let sql = format!("{SKILL_SELECT} WHERE id=? AND workspace_id=? AND approved_at IS NOT NULL AND ring IN ('pilot','all')");
-    match sqlx::query_as::<_, Skill>(&sql).bind(id).bind(workspace_id).fetch_optional(&state.db).await {
-        Ok(Some(skill)) if !repository_is_released(&skill, &repository) => error(StatusCode::FORBIDDEN, "This repository is not in the active release ring."),
-        Ok(Some(skill)) if !json_array(&skill.targets).contains(&agent) => error(StatusCode::FORBIDDEN, "This skill version has no adapter for that agent."),
-        Ok(Some(skill)) if !package_is_valid(&state, &skill) => error(StatusCode::CONFLICT, "The signed package failed verification."),
-        Ok(Some(skill)) => Json(serde_json::json!({"schema":"team-agent-skill/v2","repository":repository,"agent":agent,"package":skill_json(skill)})).into_response(),
-        Ok(None) => error(StatusCode::NOT_FOUND, "No reviewed released package matches that request."),
-        Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "The package could not be installed."),
+    match sqlx::query_as::<_, Skill>(&sql)
+        .bind(id)
+        .bind(workspace_id)
+        .fetch_optional(&state.db)
+        .await
+    {
+        Ok(Some(skill)) if !repository_is_released(&skill, &repository) => error(
+            StatusCode::FORBIDDEN,
+            "This repository is not in the active release ring.",
+        ),
+        Ok(Some(skill)) if !json_array(&skill.targets).contains(&agent) => error(
+            StatusCode::FORBIDDEN,
+            "This skill version has no adapter for that agent.",
+        ),
+        Ok(Some(skill)) if !package_is_valid(&state, &skill) => error(
+            StatusCode::CONFLICT,
+            "The signed package failed verification.",
+        ),
+        Ok(Some(skill)) => {
+            let native = native_file(&skill, &repository, &agent);
+            Json(serde_json::json!({"schema":"team-agent-skill/v2","repository":repository,"agent":agent,"native_file":native,"package":skill_json(skill)})).into_response()
+        }
+        Ok(None) => error(
+            StatusCode::NOT_FOUND,
+            "No reviewed released package matches that request.",
+        ),
+        Err(_) => error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "The package could not be installed.",
+        ),
     }
 }
 
@@ -1274,7 +1363,7 @@ async fn migrate_workspaces(db: &SqlitePool) -> Result<(), sqlx::Error> {
         sqlx::query("ALTER TABLE workspaces RENAME TO workspaces_legacy_v1")
             .execute(db)
             .await?;
-        sqlx::query("CREATE TABLE workspaces (id TEXT PRIMARY KEY,name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL)")
+        sqlx::query("CREATE TABLE workspaces (id TEXT PRIMARY KEY,name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,recovery_hash TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL)")
             .execute(db).await?;
         sqlx::query("INSERT INTO workspaces (id,name,token_hash,created_at) SELECT id,name,token_hash,created_at FROM workspaces_legacy_v1")
             .execute(db).await?;
@@ -1282,7 +1371,7 @@ async fn migrate_workspaces(db: &SqlitePool) -> Result<(), sqlx::Error> {
             .execute(db)
             .await?;
     } else if existing.is_none() {
-        sqlx::query("CREATE TABLE workspaces (id TEXT PRIMARY KEY,name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL)")
+        sqlx::query("CREATE TABLE workspaces (id TEXT PRIMARY KEY,name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,recovery_hash TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL)")
             .execute(db).await?;
     }
     Ok(())
@@ -1315,6 +1404,12 @@ async fn migrate_skills(db: &SqlitePool) -> Result<(), sqlx::Error> {
 async fn initialise(db: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("PRAGMA foreign_keys=ON").execute(db).await?;
     migrate_workspaces(db).await?;
+    add_column(
+        db,
+        "ALTER TABLE workspaces ADD COLUMN recovery_hash TEXT NOT NULL DEFAULT ''",
+    )
+    .await;
+    sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS workspace_recovery_hash_unique ON workspaces (recovery_hash) WHERE recovery_hash != ''").execute(db).await?;
     migrate_skills(db).await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS approvals (id TEXT PRIMARY KEY,workspace_id TEXT NOT NULL,skill_id TEXT NOT NULL,package_digest TEXT NOT NULL DEFAULT '',reviewer TEXT NOT NULL,approved_at TEXT NOT NULL)").execute(db).await?;
     add_column(
@@ -1423,6 +1518,7 @@ async fn main() {
         .route("/health", get(health))
         .route("/api/trust", get(trust))
         .route("/api/session", post(create_session))
+        .route("/api/session/recover", post(recover_session))
         .route("/api/git-credentials", post(bind_git_credential))
         .route("/api/skills", get(list_skills).post(create_skill))
         .route("/api/review", get(review_package))

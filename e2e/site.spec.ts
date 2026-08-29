@@ -28,10 +28,29 @@ test('client-side navigation moves focus to the page heading and announces it', 
 });
 
 test('route metadata follows the current page', async ({ page }) => {
-  await page.goto('/privacy');
-  await expect(page).toHaveTitle('Privacy — Team Skills Registry');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://team-agent-skills.sociobot.in/privacy');
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'Privacy — Team Skills Registry');
+  for (const path of ['/', '/demo', '/registry', '/review', '/privacy', '/terms']) {
+    await page.goto(path);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `https://team-agent-skills.sociobot.in${path === '/' ? '' : path}`);
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', await page.title());
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://team-agent-skills.sociobot.in/social-card.webp');
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://team-agent-skills.sociobot.in/social-card.webp');
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /\S/);
+  }
+});
+
+test('footer navigation reveals the new heading and Back restores scroll and focus', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const footerPrivacy = page.locator('footer').getByRole('link', { name: 'Privacy' });
+  await footerPrivacy.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => window.scrollY);
+  await footerPrivacy.click();
+  const privacyHeading = page.getByRole('heading', { level: 1, name: 'Privacy for the registry' });
+  await expect(privacyHeading).toBeFocused();
+  expect((await privacyHeading.boundingBox())?.y).toBeGreaterThanOrEqual(0);
+  await page.goBack();
+  await expect(page.locator('footer').getByRole('link', { name: 'Privacy' })).toBeFocused();
+  expect(Math.abs((await page.evaluate(() => window.scrollY)) - before)).toBeLessThan(3);
 });
 
 test('@claim:managed-plan-status pricing is exact and does not expose an inactive checkout', async ({ page }) => {
@@ -54,22 +73,37 @@ test('rejected rollout remains unchanged and explains recovery', async ({ page }
   await page.route('**/api/receipts', route => route.fulfill({json:[]}));
   await page.route('**/api/skills/secure-commit/ring', route => route.fulfill({status:429,headers:{'Retry-After':'1'},json:{error:'Too many requests. Wait one second.'}}));
   await page.goto('/registry');
-  await page.getByRole('button', {name:'Draft',exact:true}).click();
+  await page.getByRole('button', {name:'Move to draft',exact:true}).click();
   await expect(page.getByText('Release unchanged. Too many requests. Wait one second.')).toBeVisible();
-  await expect(page.getByRole('button', {name:'Pilot',exact:true})).toHaveAttribute('aria-pressed','true');
-  await expect(page.getByRole('button', {name:'Draft',exact:true})).toHaveAttribute('aria-pressed','false');
+  await expect(page.getByRole('button', {name:'Release to pilot',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('button', {name:'Move to draft',exact:true})).toHaveAttribute('aria-pressed','false');
 });
 
 test('inactive persisted owner key has visible recovery controls', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('team-agent-skills:workspace-key', 'tsr_stale_workspace_key_12345678901234567890'));
-  await page.route('**/api/skills', route => route.fulfill({ status: 401, json: { error: 'That workspace key is not active.' } }));
-  await page.route('**/api/receipts', route => route.fulfill({ status: 401, json: { error: 'That workspace key is not active.' } }));
+  await page.route('**/api/skills', route => route.fulfill({ status: 401, json: { error: 'That workspace owner key is not active.' } }));
+  await page.route('**/api/receipts', route => route.fulfill({ status: 401, json: { error: 'That workspace owner key is not active.' } }));
   await page.goto('/registry');
-  await expect(page.getByText('That workspace key is not active.')).toBeVisible();
+  await expect(page.getByText('That workspace owner key is not active.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Forget inactive key' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Restore workspace' })).toBeVisible();
   await page.getByRole('button', { name: 'Forget inactive key' }).click();
   expect(await page.evaluate(() => localStorage.getItem('team-agent-skills:workspace-key'))).toBeNull();
+});
+
+test('workspace creation exposes an exportable recovery kit and recovery rotates the owner key', async ({ page }) => {
+  await page.route('**/api/session', route => route.fulfill({ status: 201, json: { workspace_id: 'ws-one', token: 'tsr_owner_new', recovery_key: 'tsr_recovery_one' } }));
+  await page.route('**/api/skills', route => route.fulfill({ json: [] }));
+  await page.route('**/api/receipts', route => route.fulfill({ json: [] }));
+  await page.goto('/registry');
+  await page.getByRole('button', { name: 'Create private workspace' }).click();
+  await expect(page.getByRole('heading', { name: 'Save your workspace access' })).toBeVisible();
+  await expect(page.getByText('tsr_owner_new')).toBeVisible();
+  await expect(page.getByText('tsr_recovery_one')).toBeVisible();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download recovery kit' }).click()]);
+  const kit = await (await import('node:fs/promises')).readFile(await download.path() as string, 'utf8');
+  expect(kit).toContain('Workspace owner key: tsr_owner_new');
+  expect(kit).toContain('Workspace recovery key: tsr_recovery_one');
 });
 
 test('review route uses only its one-time package key', async ({ page }) => {

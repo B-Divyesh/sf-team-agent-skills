@@ -3,6 +3,7 @@ import './repair.css';
 import { Receipt, Ring, Skill, sampleReceipts, sampleSkills, titleFor } from './data';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
+history.scrollRestoration = 'manual';
 const demoKey = 'demo:team-agent-skills:v2';
 const tokenKey = 'team-agent-skills:workspace-key';
 let notice = '';
@@ -12,6 +13,7 @@ let selectedId = '';
 let publishOpen = false;
 let invalidStoredKey = false;
 let reviewSkill: Skill | null = null;
+let newCredentials: { ownerKey: string; recoveryKey?: string } | null = null;
 
 class ApiError extends Error { constructor(message:string, readonly status:number) { super(message); } }
 
@@ -84,14 +86,18 @@ function demoBanner() {
 }
 function chips(items:string[]) { return `<span class="chips">${items.map(x=>`<span>${esc(x)}</span>`).join('')}</span>`; }
 function landing() {
-  return `<main id="main" tabindex="-1"><section class="hero"><div class="hero-copy"><p class="eyebrow">Team skill releases</p><h1>Release reviewed skills across repositories</h1><p class="lede">For engineering leads who need one checked instruction set for every coding agent.</p><div class="hero-actions">${link('/demo','Try it with sample data','button primary')}<span>Open three complete skill packages and their review records.</span></div><ul class="facts"><li>Sample data stays in this browser.</li><li>Receipts preserve the exact package version.</li><li>Real workspaces use a private access key.</li></ul></div><figure class="hero-art"><img src="/release-desk.webp" width="1200" height="800" fetchpriority="high" alt="A paper-cut release desk routes a skill packet through an approval stamp into repository drawers."><figcaption>Original generated artwork showing the release workflow.</figcaption></figure></section>
+  return `<main id="main" tabindex="-1"><section class="hero"><div class="hero-copy"><p class="eyebrow">Team skill releases</p><h1>Release reviewed skills across repositories</h1><p class="lede">For engineering leads who need one checked instruction set for every coding agent.</p><div class="hero-actions">${link('/demo','Try it with sample data','button primary')}<span>Open three complete skill packages and their review records.</span></div><ul class="facts"><li>Sample data stays in this browser.</li><li>Receipts preserve the exact package version.</li><li>Real workspaces use a workspace owner key.</li></ul></div><figure class="hero-art"><img src="/release-desk.webp" width="1200" height="800" fetchpriority="high" alt="A paper-cut release desk routes a skill packet through an approval stamp into repository drawers."></figure></section>
   <section class="preview-section" aria-labelledby="preview-title"><div class="section-heading"><p class="eyebrow">Package preview</p><h2 id="preview-title">Check the package before an agent installs it</h2></div><div class="diorama-preview"><div class="packet-stack"><div class="paper-label">skill.json</div><strong>Secure commit</strong><span>v2.4.0</span><span class="stamp">APPROVED</span></div><div class="approval-path"><span>Review</span><i></i><span>Pilot</span><i></i><span>Assigned repositories</span></div><div class="receipt-paper"><small>Execution receipt</small><strong>rcpt-7F3A</strong><span>atlas-api · Codex</span><span>Secure commit v2.4.0</span></div></div></section>
   <section class="steps" aria-labelledby="steps-title"><div class="section-heading"><p class="eyebrow">Release path</p><h2 id="steps-title">Publish, approve, then install</h2></div><ol><li><b>1</b><h3>Publish an exact version</h3><p>Commit one JSON skill package with its repository assignments.</p></li><li><b>2</b><h3>Record a review</h3><p>Name the reviewer before the version enters pilot or full release.</p></li><li><b>3</b><h3>Install and record</h3><p>Agents fetch one assigned package and save a signed receipt.</p></li></ol></section>
   <section class="plain-panel"><div><p class="eyebrow">Limits and privacy</p><h2>Keep credentials out of instructions</h2></div><p>The secret reference field accepts uppercase names such as GITHUB_TOKEN. The API rejects other formats.</p></section>
-  <section class="pricing" aria-labelledby="pricing-title"><div><p class="eyebrow">Managed plan</p><h2 id="pricing-title">$149 per team each month</h2><p>Managed billing is not active in this release. The self-hosted registry remains available under MIT.</p></div><div class="price-actions"><strong>No payment is collected here.</strong><span>Deployment owners can connect the Sociobot billing API when the managed plan opens.</span></div></section></main>`;
+  <section class="pricing" aria-labelledby="pricing-title"><div><p class="eyebrow">Managed plan</p><h2 id="pricing-title">$149 per team each month</h2><p>Managed billing is not active in this release. The self-hosted registry is licensed under MIT.</p></div><div class="price-actions"><strong>No payment is collected here.</strong></div></section></main>`;
 }
 function workspaceStart() {
-  return `<main id="main" tabindex="-1" class="workspace onboarding"><p class="eyebrow">Private workspace</p><h1>Open your team skill registry</h1><p>Create an isolated workspace or restore one with its private key.</p>${noticeBlock()}${invalidStoredKey?'<button class="text-button" data-forget-key>Forget inactive key</button>':''}<div class="start-grid"><form data-create-workspace><h2>Create a workspace</h2><label>Workspace name<input name="name" required maxlength="80" value="Engineering"></label><button class="button primary">Create private workspace</button></form><form data-restore-workspace><h2>Restore a workspace</h2><label>Private workspace key<input name="token" required autocomplete="off" placeholder="tsr_…"></label><button class="button">Restore workspace</button></form></div><p class="key-warning">Keep the workspace key in your password manager. The server stores only its hash.</p></main>`;
+  return `<main id="main" tabindex="-1" class="workspace onboarding"><p class="eyebrow">Private workspace</p><h1>Open your team skill registry</h1><p>Create an isolated workspace, restore it, or rotate a lost workspace owner key.</p>${noticeBlock()}${invalidStoredKey?'<button class="text-button" data-forget-key>Forget inactive key</button>':''}<div class="start-grid"><form data-create-workspace><h2>Create a workspace</h2><label>Workspace name<input name="name" required maxlength="80" value="Engineering"></label><button class="button primary">Create private workspace</button></form><form data-restore-workspace><h2>Restore a workspace</h2><label>Workspace owner key<input name="token" required autocomplete="off" placeholder="tsr_…"></label><button class="button">Restore workspace</button></form><form data-recover-workspace><h2>Recover a workspace</h2><p>Use the recovery key to replace a lost workspace owner key.</p><label>Workspace recovery key<input name="recovery_key" required autocomplete="off" placeholder="tsr_recovery_…"></label><button class="button">Rotate workspace owner key</button></form></div><p class="key-warning">Keep both keys in a password manager. The server stores only their hashes.</p></main>`;
+}
+function credentialsPanel() {
+  if (!newCredentials) return '';
+  return `<section class="credential-panel" aria-labelledby="credential-title"><h2 id="credential-title">Save your workspace access</h2><p>The workspace owner key opens the registry. The recovery key replaces a lost workspace owner key.</p><dl><div><dt>Workspace owner key</dt><dd><code>${esc(newCredentials.ownerKey)}</code></dd></div>${newCredentials.recoveryKey?`<div><dt>Workspace recovery key</dt><dd><code>${esc(newCredentials.recoveryKey)}</code></dd></div>`:''}</dl><button class="button" data-download-recovery>Download recovery kit</button><button class="text-button" data-dismiss-credentials>I saved these keys</button></section>`;
 }
 function noticeBlock() { return notice ? `<p class="notice" role="status">${esc(notice)}</p>` : ''; }
 function skillCard(skill:Skill) {
@@ -118,7 +124,7 @@ function publishForm() {
 function registryPage(demo:boolean) {
   if (!demo && (!token() || invalidStoredKey)) return workspaceStart();
   const selected=skills.find(skill=>skill.id===selectedId) || skills[0];
-  return `<main id="main" tabindex="-1" class="workspace"><div class="workspace-title"><div><p class="eyebrow">${demo?'Sandbox workspace':'Key-protected workspace'}</p><h1>Review skill releases in one place</h1><p>Inspect exact package content, approval, repository access, and receipts.</p></div><button class="button primary" data-new-skill>Publish a version</button></div>${noticeBlock()}${publishForm()}<div class="workspace-grid"><aside class="skill-list" aria-label="Skill packages"><div class="list-heading"><h2>Skill packages</h2><span>${skills.length}</span></div>${skills.length?skills.map(skillCard).join(''):`<div class="empty"><h2>No skill packages yet</h2><p>Publish the first exact version for review.</p><button class="button" data-new-skill>Publish a version</button></div>`}</aside><section class="detail-panel" aria-live="polite">${selected?detail(selected):`<div class="empty"><h2>The selected package appears here</h2><p>Select a package after you publish it.</p></div>`}</section></div>
+  return `<main id="main" tabindex="-1" class="workspace"><div class="workspace-title"><div><p class="eyebrow">${demo?'Sandbox workspace':'Key-protected workspace'}</p><h1>Review skill releases in one place</h1><p>Inspect exact package content, approval, repository access, and receipts.</p></div><button class="button primary" data-new-skill>Publish a version</button></div>${noticeBlock()}${demo?'':credentialsPanel()}${publishForm()}<div class="workspace-grid"><aside class="skill-list" aria-label="Skill packages"><div class="list-heading"><h2>Skill packages</h2><span>${skills.length}</span></div>${skills.length?skills.map(skillCard).join(''):`<div class="empty"><h2>No skill packages yet</h2><p>Publish the first exact version for review.</p><button class="button" data-new-skill>Publish a version</button></div>`}</aside><section class="detail-panel" aria-live="polite">${selected?detail(selected):`<div class="empty"><h2>The selected package appears here</h2><p>Select a package after you publish it.</p></div>`}</section></div>
   <section class="receipts" aria-labelledby="receipts-title"><div class="section-heading"><p class="eyebrow">Execution history</p><h2 id="receipts-title">Receipts preserve the installed version</h2></div>${receipts.length?`<div class="table-wrap" tabindex="0" role="region" aria-label="Execution receipts table"><table><thead><tr><th>Skill version</th><th>Repository</th><th>Agent</th><th>Recorded</th><th>State</th></tr></thead><tbody>${receipts.map(receiptRow).join('')}</tbody></table></div>`:`<div class="empty"><p>Receipts appear after an assigned, reviewed package runs.</p></div>`}</section></main>`;
 }
 function reviewPage() {
@@ -127,17 +133,37 @@ function reviewPage() {
 }
 function detail(skill:Skill) {
   const approval=skill.approved_by?`<strong>Approved by ${esc(skill.approved_by)}</strong><span>${esc(skill.approval_id || '')} · ${esc(skill.approved_at || '')}</span>`:`<strong>Awaiting independent review</strong><span>Use the package's one-time key on the Review page.</span>`;
+  const firstAgent=skill.targets[0] || 'Agent';
+  const firstRepository=skill.repositories[0] || 'repository';
+  const firstFile=nativeFileName(firstAgent);
   return `<div class="detail-head"><div><span class="ring ${skill.ring}">${skill.ring==='all'?'Released everywhere':'Ring: '+skill.ring}</span><h2>${esc(skill.name)}</h2><p>${esc(skill.summary)}</p></div><span class="version">v${esc(skill.version)}</span></div>
   <dl class="metadata"><div><dt>Owner</dt><dd>${esc(skill.owner)}</dd></div><div><dt>Agents</dt><dd>${chips(skill.targets)}</dd></div><div><dt>Repositories</dt><dd>${esc(skill.repositories.join(', '))}</dd></div><div><dt>Secret references</dt><dd>${skill.secrets.length?skill.secrets.map(esc).join(', '):'None named'}</dd></div><div><dt>Verified Git commit</dt><dd><code>${esc(skill.git_commit.slice(0,12))}</code></dd></div><div><dt>Package digest</dt><dd><code>${esc(skill.package_digest.slice(0,12))}</code></dd></div><div><dt>Ed25519 signature</dt><dd><code>${esc((skill.package_signature || 'Demo signature').slice(0,12))}</code></dd></div></dl>
   <section class="package-content"><h3>Instruction package</h3><p>${esc(skill.instructions)}</p><h4>Agent adapters</h4><ul>${Object.entries(skill.adapters).map(([agent,value])=>`<li><strong>${esc(agent)}:</strong> ${esc(value)}</li>`).join('')}</ul></section>
   <section class="approval-record" aria-label="Approval record">${approval}${isDemo()&&!skill.approved_by?`<form data-approve-form><label>Reviewer name<input name="reviewer" required maxlength="100"></label><button class="button" type="submit">Approve this version</button></form>`:''}</section>
-  <section class="release-track" aria-labelledby="release-title"><h3 id="release-title">Release ring</h3><div class="track">${(['draft','review','pilot','all'] as Ring[]).map(r=>`<button aria-pressed="${skill.ring===r}" class="${skill.ring===r?'active':''}" data-ring="${r}">${r==='all'?'All repos':r[0].toUpperCase()+r.slice(1)}</button>`).join('<span aria-hidden="true"></span>')}</div><p>Pilot and full release require a recorded review.</p></section>
-  <div class="install-row"><button class="button" data-install-package>Download assigned package</button><span>JSON includes instructions, adapters, verified commit, digest, and signature.</span></div>
+  <section class="release-track" aria-labelledby="release-title"><h3 id="release-title">Release ring</h3><div class="track">${(['draft','review','pilot','all'] as Ring[]).map(r=>`<button aria-pressed="${skill.ring===r}" class="${skill.ring===r?'active':''}" data-ring="${r}">${r==='draft'?'Move to draft':r==='review'?'Send for review':r==='pilot'?'Release to pilot':'Release to all assigned repositories'}</button>`).join('<span aria-hidden="true"></span>')}</div><p>Pilot and full release require a recorded review.</p></section>
+  <section class="native-export" aria-labelledby="native-export-title"><h3 id="native-export-title">Install in a repository</h3><p>Choose an assigned repository and agent. Download its native instruction file or the signed JSON record.</p><div class="native-options"><label>Repository<select name="package-repository">${skill.repositories.map(repo=>`<option>${esc(repo)}</option>`).join('')}</select></label><label>Agent<select name="package-agent">${skill.targets.map(agent=>`<option>${esc(agent)}</option>`).join('')}</select></label></div><div class="install-row"><button class="button primary" data-download-native>Download <span data-native-file>${firstFile}</span></button><button class="button" data-download-json>Download signed JSON</button></div><p class="install-command">Then run <code data-install-command>cp ${firstFile} ${esc(firstRepository)}/${firstFile}</code> <button class="text-button" data-copy-command>Copy command</button></p></section>
   <form class="receipt-form" data-receipt-form><h3>Record an agent run</h3><p>Use this after an assigned adapter installs a pilot or full release.</p><label>Repository<select name="repository">${skill.repositories.map(repo=>`<option>${esc(repo)}</option>`).join('')}</select></label><label>Agent<select name="agent">${skill.targets.map(agent=>`<option>${esc(agent)}</option>`).join('')}</select></label><button class="button" type="submit" ${skill.ring==='pilot'||skill.ring==='all'?'':'disabled'}>Record execution receipt</button></form>`;
+}
+function nativeFileName(agent:string) {
+  const normalized=agent.toLowerCase();
+  if(normalized==='codex')return 'AGENTS.md';
+  if(normalized==='claude'||normalized==='claude code')return 'CLAUDE.md';
+  if(normalized==='gemini'||normalized==='gemini cli')return 'GEMINI.md';
+  return 'AGENT_INSTRUCTIONS.md';
+}
+function nativeArtifact(skill:Skill,repository:string,agent:string) {
+  const path=nativeFileName(agent);
+  const content=`# ${skill.name}\n\n${skill.instructions}\n\n## ${agent} instructions\n\n${skill.adapters[agent] || ''}\n\n---\nPackage: ${skill.id} v${skill.version}\nRepository: ${repository}\nGit commit: ${skill.git_commit}\nPackage digest: ${skill.package_digest}\nSignature: ${skill.package_signature || 'Demo signature'}\n`;
+  return {path,content,install_command:`cp ${path} ${repository}/${path}`};
+}
+function downloadText(name:string,content:string,type:string) {
+  const url=URL.createObjectURL(new Blob([content],{type}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function legal(kind:'privacy'|'terms') {
   const privacy=kind==='privacy';
-  return `<main id="main" tabindex="-1" class="legal"><p class="eyebrow">Team Skills Registry</p><h1>${privacy?'Privacy for the registry':'Terms for the registry'}</h1>${privacy?`<p>The service stores skill packages, reviews, repository assignments, and receipts in its workspace database.</p><h2>Workspace keys</h2><p>Your browser stores the private workspace key. The server stores only its SHA-256 hash.</p><h2>Secret references</h2><p>The API accepts uppercase names such as <code>GITHUB_TOKEN</code>. It rejects other formats in that field.</p><h2>Demo mode</h2><p>Demo data uses a separate browser key. Leaving the demo deletes that key.</p>`:`<p>Use this registry only for instructions and repositories your team may access.</p><h2>Your responsibilities</h2><p>Keep the workspace key private. Review each exact version before release.</p><h2>Service limits</h2><p>Check every downloaded instruction package before an agent uses it.</p>`}</main>`;
+  return `<main id="main" tabindex="-1" class="legal"><p class="eyebrow">Team Skills Registry</p><h1>${privacy?'Privacy for the registry':'Terms for the registry'}</h1>${privacy?`<p>The service stores skill packages, reviews, repository assignments, and receipts in its workspace database.</p><h2>Workspace keys</h2><p>Your browser stores the workspace owner key. The server stores only hashes of owner and recovery keys.</p><h2>Secret references</h2><p>The API accepts uppercase names such as <code>GITHUB_TOKEN</code>. It rejects other formats in that field.</p><h2>Demo mode</h2><p>Demo data uses a separate browser key. Leaving the demo deletes that key.</p>`:`<p>Use this registry only for instructions and repositories your team may access.</p><h2>Your responsibilities</h2><p>Keep the workspace owner key and recovery key private. Review each exact version before release.</p><h2>Service limits</h2><p>Check every downloaded instruction file before an agent uses it.</p>`}</main>`;
 }
 function notFound() { return `<main id="main" tabindex="-1" class="not-found"><div class="lost-paper">404</div><p class="eyebrow">Page not found</p><h1>This page is not in the registry</h1><p>Return to the release desk and choose a listed page.</p>${link('/','Return home','button primary')}</main>`; }
 function setMetadata(path:string) {
@@ -157,14 +183,16 @@ function render(moveFocus=false) {
   const page=isDemo()?registryPage(true):path==='/'?landing():path==='/registry'?registryPage(false):path==='/review'?reviewPage():path==='/privacy'?legal('privacy'):path==='/terms'?legal('terms'):notFound();
   app.innerHTML=`${header()}${isDemo()?demoBanner():''}${page}${footer()}<div class="sr-only" aria-live="polite" id="route-announcer"></div>`;
   bind();
-  if (moveFocus) requestAnimationFrame(()=>{const heading=document.querySelector<HTMLElement>('h1');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});const announcer=document.querySelector<HTMLElement>('#route-announcer');if(announcer)announcer.textContent=document.title;});
+  if (moveFocus) requestAnimationFrame(()=>{const prior=document.documentElement.style.scrollBehavior;document.documentElement.style.scrollBehavior='auto';const heading=document.querySelector<HTMLElement>('h1');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0;requestAnimationFrame(()=>{document.documentElement.style.scrollBehavior=prior;});const announcer=document.querySelector<HTMLElement>('#route-announcer');if(announcer)announcer.textContent=document.title;});
 }
 function bind() {
   document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click',event=>{event.preventDefault();document.querySelector<HTMLElement>('#main')?.focus();});
   document.querySelectorAll<HTMLAnchorElement>('[data-route]').forEach(a=>a.addEventListener('click',event=>{
     if(event.metaKey||event.ctrlKey)return; event.preventDefault();
     const next=new URL(a.href).pathname; if(isDemo()&&next==='/registry'){localStorage.removeItem(demoKey);notice='';selectedId='';}
-    history.pushState({},'',a.href); loadData().then(()=>render(true));
+    const matches=Array.from(document.querySelectorAll<HTMLAnchorElement>(`a[data-route][href="${a.getAttribute('href')}"]`));
+    history.replaceState({scrollY:window.scrollY,focusHref:a.getAttribute('href'),focusIndex:matches.indexOf(a)},'',location.href);
+    history.pushState({scrollY:0},'',a.href); loadData().then(()=>render(true));
   }));
   document.querySelector('[data-reset-demo]')?.addEventListener('click',()=>{localStorage.removeItem(demoKey);({skills,receipts}=getDemoData());selectedId=skills[0].id;notice='Demo reset. The sample packages are back.';render();});
   document.querySelectorAll('[data-new-skill]').forEach(button=>button.addEventListener('click',()=>{publishOpen=true;render();document.querySelector<HTMLElement>('#publish-title')?.scrollIntoView();}));
@@ -176,6 +204,13 @@ function bind() {
   const selected=skills.find(skill=>skill.id===selectedId)||skills[0]; if(selected)bindDetail(selected);
   document.querySelector<HTMLFormElement>('[data-create-workspace]')?.addEventListener('submit',createWorkspace);
   document.querySelector<HTMLFormElement>('[data-restore-workspace]')?.addEventListener('submit',restoreWorkspace);
+  document.querySelector<HTMLFormElement>('[data-recover-workspace]')?.addEventListener('submit',recoverWorkspace);
+  document.querySelector('[data-download-recovery]')?.addEventListener('click',()=>{
+    if(!newCredentials)return;
+    const recovery=newCredentials.recoveryKey?`\nWorkspace recovery key: ${newCredentials.recoveryKey}`:'';
+    downloadText('team-skills-recovery.txt',`Team Skills Registry recovery kit\nWorkspace owner key: ${newCredentials.ownerKey}${recovery}\n`,'text/plain');
+  });
+  document.querySelector('[data-dismiss-credentials]')?.addEventListener('click',()=>{newCredentials=null;render();});
   document.querySelector('[data-forget-key]')?.addEventListener('click',()=>{localStorage.removeItem(tokenKey);invalidStoredKey=false;notice='Inactive key removed. Create or restore a workspace.';render();});
   document.querySelector<HTMLFormElement>('[data-review-open]')?.addEventListener('submit',openReview);
   document.querySelector<HTMLFormElement>('[data-review-approve]')?.addEventListener('submit',approveReview);
@@ -198,15 +233,20 @@ function bindDetail(skill:Skill) {
     else try{await api(`/api/skills/${skill.id}/ring`,{method:'PATCH',body:JSON.stringify({ring})});skill.ring=ring;skill.updated='Just now';}catch(error){skill.ring=previous;notice=`Release unchanged. ${message(error)}`;render();return;}
     notice=`${skill.name} is now in ${ring==='all'?'all assigned repositories':ring}.`;render();
   }));
-  document.querySelector<HTMLButtonElement>('[data-install-package]')?.addEventListener('click',async()=>{
-    const repository=skill.repositories[0]; try{
-      let payload:unknown;
-      if(isDemo()) payload={schema:'team-agent-skill/v2',repository,agent:skill.targets[0],package:skill};
-      else { const agent=skill.targets[0]; const issued=await (await api(`/api/skills/${skill.id}/install-credentials`,{method:'POST',body:JSON.stringify({repository,agent})})).json() as {credential:string}; payload=await (await api(`/api/repositories/${encodeURIComponent(repository)}/agents/${encodeURIComponent(agent)}/install/${skill.id}`,{headers:{authorization:`Bearer ${issued.credential}`}})).json(); }
-      const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
-      const a=document.createElement('a');a.href=url;a.download=`${skill.id}-${skill.version}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>{URL.revokeObjectURL(url);notice=`Downloaded ${skill.name} for ${repository}.`;render();},1000);
-    }catch(error){notice=message(error);render();}
-  });
+  const repositorySelect=document.querySelector<HTMLSelectElement>('[name="package-repository"]');
+  const agentSelect=document.querySelector<HTMLSelectElement>('[name="package-agent"]');
+  const selection=()=>({repository:repositorySelect?.value||skill.repositories[0],agent:agentSelect?.value||skill.targets[0]});
+  const updateNative=()=>{const {repository,agent}=selection();const artifact=nativeArtifact(skill,repository,agent);const file=document.querySelector('[data-native-file]');const command=document.querySelector('[data-install-command]');if(file)file.textContent=artifact.path;if(command)command.textContent=artifact.install_command;};
+  repositorySelect?.addEventListener('change',updateNative);agentSelect?.addEventListener('change',updateNative);
+  const getPayload=async()=>{
+    const {repository,agent}=selection();
+    if(isDemo())return {schema:'team-agent-skill/v2',repository,agent,native_file:nativeArtifact(skill,repository,agent),package:skill};
+    const issued=await (await api(`/api/skills/${skill.id}/install-credentials`,{method:'POST',body:JSON.stringify({repository,agent})})).json() as {credential:string};
+    return await (await api(`/api/repositories/${encodeURIComponent(repository)}/agents/${encodeURIComponent(agent)}/install/${skill.id}`,{headers:{authorization:`Bearer ${issued.credential}`}})).json() as {native_file:{path:string;content:string;install_command:string}};
+  };
+  document.querySelector<HTMLButtonElement>('[data-download-native]')?.addEventListener('click',async()=>{try{const payload=await getPayload();downloadText(payload.native_file.path,payload.native_file.content,'text/markdown');notice=`Downloaded ${payload.native_file.path} for ${selection().repository}.`;render();}catch(error){notice=message(error);render();}});
+  document.querySelector<HTMLButtonElement>('[data-download-json]')?.addEventListener('click',async()=>{try{const payload=await getPayload();downloadText(`${skill.id}-${skill.version}.json`,JSON.stringify(payload,null,2),'application/json');notice=`Downloaded the signed JSON for ${selection().repository}.`;render();}catch(error){notice=message(error);render();}});
+  document.querySelector<HTMLButtonElement>('[data-copy-command]')?.addEventListener('click',async()=>{const artifact=nativeArtifact(skill,selection().repository,selection().agent);await navigator.clipboard.writeText(artifact.install_command);notice='Install command copied.';render();});
   document.querySelector<HTMLFormElement>('[data-receipt-form]')?.addEventListener('submit',async event=>{
     event.preventDefault();const form=new FormData(event.currentTarget as HTMLFormElement);const repository=String(form.get('repository'));const agent=String(form.get('agent'));
     let receipt:Receipt;
@@ -217,11 +257,15 @@ function bindDetail(skill:Skill) {
 }
 async function createWorkspace(event:SubmitEvent) {
   event.preventDefault();const name=String(new FormData(event.currentTarget as HTMLFormElement).get('name'));
-  try{const result=await (await api('/api/session',{method:'POST',body:JSON.stringify({name})})).json();localStorage.setItem(tokenKey,result.token);await loadData();notice=`Save owner key ${result.token}. Each published version gets its own reviewer key.`;render();}catch(error){notice=message(error);render();}
+  try{const result=await (await api('/api/session',{method:'POST',body:JSON.stringify({name})})).json();localStorage.setItem(tokenKey,result.token);newCredentials={ownerKey:result.token,recoveryKey:result.recovery_key};await loadData();notice='Workspace created. Save both keys before publishing.';render();}catch(error){notice=message(error);render();}
 }
 async function restoreWorkspace(event:SubmitEvent) {
   event.preventDefault();const value=String(new FormData(event.currentTarget as HTMLFormElement).get('token')).trim();localStorage.setItem(tokenKey,value);
   await loadData();if(notice){localStorage.removeItem(tokenKey);render();return;}notice='Private workspace restored.';render();
+}
+async function recoverWorkspace(event:SubmitEvent) {
+  event.preventDefault();const recovery_key=String(new FormData(event.currentTarget as HTMLFormElement).get('recovery_key')).trim();
+  try{const result=await (await api('/api/session/recover',{method:'POST',body:JSON.stringify({recovery_key})})).json();localStorage.setItem(tokenKey,result.token);newCredentials={ownerKey:result.token};await loadData();notice='Workspace recovered. Save the new workspace owner key; the previous one no longer works.';render();}catch(error){notice=message(error);render();}
 }
 async function publishSkill(event:SubmitEvent) {
   event.preventDefault();const form=new FormData(event.currentTarget as HTMLFormElement);
@@ -242,5 +286,8 @@ async function approveReview(event:SubmitEvent) {
   try{await api('/api/review/approve',{method:'POST',headers:{authorization:`Bearer ${key}`},body:JSON.stringify({reviewer})});reviewSkill=null;sessionStorage.removeItem('team-agent-skills:review-key');notice='Review recorded. This reviewer key cannot be used again.';render();}
   catch(error){notice=message(error);render();}
 }
-window.addEventListener('popstate',()=>loadData().then(()=>render(true)));
+window.addEventListener('popstate',event=>{
+  const state=event.state as {scrollY?:number;focusHref?:string;focusIndex?:number}|null;
+  loadData().then(()=>{render(false);requestAnimationFrame(()=>{const prior=document.documentElement.style.scrollBehavior;document.documentElement.style.scrollBehavior='auto';window.scrollTo(0,state?.scrollY||0);const matches=state?.focusHref?Array.from(document.querySelectorAll<HTMLElement>(`a[data-route][href="${state.focusHref}"]`)):[];matches[state?.focusIndex||0]?.focus({preventScroll:true});requestAnimationFrame(()=>{document.documentElement.style.scrollBehavior=prior;});});});
+});
 loadData().then(()=>render());

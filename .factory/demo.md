@@ -3,7 +3,8 @@
 Open `/demo` or `/?demo=1` for the isolated registry. It seeds three realistic
 skill packages and three execution receipts: Secure commit, Migration review, and
 Incident note. Downloads use the same `team-agent-skill/v2` envelope as real
-installs.
+installs. Each agent also exports its repository-native file: `AGENTS.md`,
+`CLAUDE.md`, `GEMINI.md`, or `AGENT_INSTRUCTIONS.md`.
 
 Demo mode stores data only at `localStorage['demo:team-agent-skills:v2']`.
 It never reads or writes the real registry API. **Reset demo** deletes that key

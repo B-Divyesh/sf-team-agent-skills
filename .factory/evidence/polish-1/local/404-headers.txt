@@ -1,0 +1,12 @@
+HTTP/1.1 404 Not Found
+content-type: text/html
+accept-ranges: bytes
+last-modified: Sat, 29 Aug 2026 04:02:18 GMT
+content-length: 1904
+x-content-type-options: nosniff
+referrer-policy: strict-origin-when-cross-origin
+strict-transport-security: max-age=31536000; includeSubDomains
+permissions-policy: camera=(), microphone=(), geolocation=()
+content-security-policy: default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+date: Sat, 29 Aug 2026 04:06:29 GMT
+

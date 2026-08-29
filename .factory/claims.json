@@ -4,7 +4,21 @@
     "claim": "Demo resets to its own sample data.",
     "where": "demo banner and README",
     "test": "npx playwright test --grep @claim:demo-separation",
-    "sandbox": "fresh browser context at /demo; change a release ring; reset; assert seeded packet returns and demo namespace is used"
+    "sandbox": "fresh browser context at /?demo=1; change a release ring; reset; assert seeded package returns and only the demo namespace is used"
+  },
+  {
+    "id": "demo-sample-content",
+    "claim": "The demo opens three complete skill packages and their review records.",
+    "where": "landing hero and README",
+    "test": "npx playwright test --grep @claim:demo-sample-content",
+    "sandbox": "fresh browser context at /demo; assert exactly three named packages and each package's approval, source, and instructions"
+  },
+  {
+    "id": "demo-teardown",
+    "claim": "Leaving the demo deletes its sample workspace.",
+    "where": "README and demo banner",
+    "test": "npx playwright test --grep @claim:demo-teardown",
+    "sandbox": "fresh browser context at /demo; reset, choose Start for real, and assert the demo storage key is absent"
   },
   {
     "id": "execution-receipt",
@@ -36,10 +50,17 @@
   },
   {
     "id": "private-workspace",
-    "claim": "Real workspaces require a private access key and isolate their records.",
+    "claim": "Real workspaces require a workspace owner key and isolate their records.",
     "where": "landing facts, registry start, privacy, README",
     "test": "cargo test --locked claim_private_workspace",
     "sandbox": "fresh server and database; assert unauthenticated reads fail, a second workspace cannot read the first, and both may use the same package id"
+  },
+  {
+    "id": "workspace-recovery",
+    "claim": "A separate recovery key replaces a lost workspace owner key.",
+    "where": "registry start, privacy, terms, and README",
+    "test": "cargo test --locked claim_workspace_recovery",
+    "sandbox": "fresh server and database; create a workspace, confirm both raw keys are absent from SQLite, recover, and assert the old owner key fails while the new key works"
   },
   {
     "id": "secret-reference-format",
@@ -57,10 +78,10 @@
   },
   {
     "id": "independent-one-time-review",
-    "claim": "A reviewer can inspect and approve one package without an owner key, and the reviewer key works once.",
+    "claim": "A reviewer can inspect and approve one package without a workspace owner key, and the reviewer key works once.",
     "where": "README and review route",
     "test": "cargo test --locked claim_independent_one_time_review",
-    "sandbox": "fresh server; fetch and approve with only the package reviewer key; assert owner key cannot review and reuse returns 401"
+    "sandbox": "fresh server; fetch and approve with only the package reviewer key; assert the workspace owner key cannot review and reuse returns 401"
   },
   {
     "id": "governed-execution-receipt",
@@ -81,7 +102,14 @@
     "claim": "An install credential reads only one package for one repository and agent.",
     "where": "registry install controls and README",
     "test": "cargo test --locked claim_scoped_install_credentials",
-    "sandbox": "fresh server; issue one scoped credential and assert the owner key cannot install, the credential cannot administer, and wrong repository or agent is rejected"
+    "sandbox": "fresh server; issue one scoped credential and assert the workspace owner key cannot install, the credential cannot administer, and wrong repository or agent is rejected"
+  },
+  {
+    "id": "repo-native-install",
+    "claim": "Each assigned agent can download a repository-native instruction file with signed package provenance.",
+    "where": "registry install controls and README",
+    "test": "npx playwright test --grep @claim:repo-native-install",
+    "sandbox": "fresh browser context at /demo; choose web-console and Claude Code, download CLAUDE.md, and assert shared instructions, adapter instructions, repository, digest, and install command"
   },
   {
     "id": "trusted-client-rate-limit",
@@ -96,6 +124,41 @@
     "where": "README and registry publish form",
     "test": "cargo test --locked claim_private_git_source",
     "sandbox": "fresh server with a fixture credential; bind PRIVATE_GITHUB to one workspace repository, publish its private package, then assert cross-workspace and cross-repository reads fail and the token is absent from SQLite"
+  },
+  {
+    "id": "trust-endpoint",
+    "claim": "The trust endpoint returns the signer key and its matching SHA-256 fingerprint.",
+    "where": "README release rules",
+    "test": "cargo test --locked claim_trust_endpoint",
+    "sandbox": "fresh server; fetch /api/trust, hash the returned public key bytes, and assert the fingerprint matches"
+  },
+  {
+    "id": "port-configuration",
+    "claim": "PORT changes the service listener.",
+    "where": "README run instructions",
+    "test": "cargo test --locked claim_port_configuration",
+    "sandbox": "start the release binary on a selected free port and reach /health on that port"
+  },
+  {
+    "id": "database-path-configuration",
+    "claim": "DATABASE_PATH selects the SQLite and signing-state directory.",
+    "where": "README run instructions",
+    "test": "cargo test --locked claim_database_path_configuration",
+    "sandbox": "start the release binary with a temporary explicit database path and assert the database and signing key are created beside it"
+  },
+  {
+    "id": "persistent-data-and-signing-key",
+    "claim": "A mounted data directory preserves workspace access and the signing identity across restarts.",
+    "where": "README deploy instructions",
+    "test": "cargo test --locked claim_persistent_data_and_signing_key",
+    "sandbox": "fresh server using a temporary data directory; create a workspace, restart with the same directory, and assert workspace access and signer fingerprint persist"
+  },
+  {
+    "id": "mit-license-build",
+    "claim": "The self-hosted build is available under the MIT license.",
+    "where": "landing managed-plan section and README",
+    "test": "npm run build && node --test --test-name-pattern='@claim:mit-license-build' tests/claims.test.mjs",
+    "sandbox": "fresh clone; complete the production frontend build, assert LICENSE is MIT, and assert the Dockerfile includes locked frontend and backend production builds"
   },
   {
     "id": "managed-plan-status",

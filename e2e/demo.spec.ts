@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 test('@claim:demo-separation demo changes reset to the separate sample workspace', async ({ page }) => {
-  await page.goto('/demo');
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.goto('/?demo=1');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await page.getByRole('button', { name: 'Send for review', exact: true }).click();
   await expect(page.getByText('Secure commit is now in review.')).toBeVisible();
   await page.getByRole('button', { name: 'Reset demo' }).click();
   await expect(page.getByText('Demo reset. The sample packages are back.')).toBeVisible();
@@ -12,9 +13,17 @@ test('@claim:demo-separation demo changes reset to the separate sample workspace
   expect(keys.some(key => key.startsWith('real:'))).toBe(false);
 });
 
+test('landing opens the isolated sample workspace in one click', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL('/demo');
+  await expect(page.locator('[data-skill]')).toHaveCount(3);
+  await expect(page.getByRole('button', { name: 'Reset demo' })).toBeVisible();
+});
+
 test('@claim:execution-receipt demo records the selected version and repository', async ({ page }) => {
   await page.goto('/demo');
-  await page.getByLabel('Repository').selectOption('atlas-api');
+  await page.locator('select[name="repository"]').selectOption('atlas-api');
   await page.getByRole('button', { name: 'Record execution receipt' }).click();
   await expect(page.getByText('Recorded rcpt-')).toBeVisible();
   const row = page.locator('tbody tr').first();
@@ -34,7 +43,7 @@ test('@claim:demo-local-data demo requests only the product origin', async ({ pa
   await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
 });
 
-test('leaving demo discards its storage and does not leak its notice', async ({ page }) => {
+test('@claim:demo-teardown leaving demo discards its storage and does not leak its notice', async ({ page }) => {
   await page.goto('/demo');
   await page.getByRole('button', { name: 'Reset demo' }).click();
   await page.getByRole('link', { name: 'Start for real' }).click();
@@ -53,9 +62,9 @@ test('@claim:review-required new versions cannot enter pilot before review', asy
   await page.getByLabel('Codex adapter', { exact: true }).fill('Run the repository audit command.');
   await page.getByLabel('Git commit SHA').fill('7fa45d6e0ca5274ed376bc86a0c8c6f1d959aad2');
   await page.getByRole('button', { name: 'Publish draft version' }).click();
-  await page.getByRole('button', { name: 'Pilot', exact: true }).click();
+  await page.getByRole('button', { name: 'Release to pilot', exact: true }).click();
   await expect(page.getByText('Approve this exact version before release.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Draft', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Move to draft', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('malformed demo storage recovers to a resettable sample workspace', async ({ page }) => {
@@ -87,7 +96,7 @@ test('@claim:package-contents downloaded package contains exact source and adapt
   await page.goto('/demo');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download assigned package' }).click()
+    page.getByRole('button', { name: 'Download signed JSON' }).click()
   ]);
   const content = await (await import('node:fs/promises')).readFile(await download.path() as string, 'utf8');
   const payload = JSON.parse(content);
@@ -99,4 +108,32 @@ test('@claim:package-contents downloaded package contains exact source and adapt
   expect(payload.package.git_commit).toHaveLength(40);
   expect(payload.package.package_digest).toHaveLength(64);
   expect(payload.package.package_signature).toHaveLength(128);
+});
+
+test('@claim:demo-sample-content demo contains exactly three complete packages and review records', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.locator('[data-skill]')).toHaveCount(3);
+  for (const name of ['Secure commit', 'Migration review', 'Incident note']) {
+    await page.getByRole('button', { name: new RegExp(name) }).click();
+    await expect(page.locator('.approval-record')).toContainText('Approved by');
+    await expect(page.locator('.metadata')).toContainText('Verified Git commit');
+    await expect(page.locator('.package-content')).toContainText('Instruction package');
+  }
+});
+
+test('@claim:repo-native-install exports the selected agent file with provenance', async ({ page }) => {
+  await page.goto('/demo');
+  await page.locator('select[name="package-repository"]').selectOption('web-console');
+  await page.locator('select[name="package-agent"]').selectOption('Claude Code');
+  await expect(page.locator('[data-install-command]')).toHaveText('cp CLAUDE.md web-console/CLAUDE.md');
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download CLAUDE.md' }).click()
+  ]);
+  expect(download.suggestedFilename()).toBe('CLAUDE.md');
+  const content = await (await import('node:fs/promises')).readFile(await download.path() as string, 'utf8');
+  expect(content).toContain('Inspect the staged diff');
+  expect(content).toContain('Use CLAUDE.md project instructions.');
+  expect(content).toContain('Repository: web-console');
+  expect(content).toContain('Package digest:');
 });

@@ -1,12 +1,13 @@
 # Team Skills Registry
 
-Publish reviewed agent skills and release them safely across repositories.
+Publish reviewed agent skill packages to assigned repositories.
 
 Team Skills Registry is for engineering leads who maintain instructions for
-different coding agents. Each version is loaded from one JSON file at a
-verified GitHub commit. It contains instructions, agent-specific adapters,
-repository assignments, pilot membership, and secret reference names. The
-service signs the complete package and its Git blob identifier before review.
+different coding agents. Each version comes from one JSON file at a verified
+GitHub commit. It includes shared instructions, instructions for each agent,
+assigned repositories, pilot repositories, and credential reference names.
+Before review, the service signs the package and Git's identifier for the exact
+source file.
 
 ## Run locally
 
@@ -18,46 +19,43 @@ npm run build
 cargo run
 ```
 
-Open `http://localhost:8080`. `PORT` changes the listener. `DATABASE_PATH`
-changes the SQLite location.
+Open `http://localhost:8080`. `PORT` changes the service listener.
+`DATABASE_PATH` selects the SQLite and signing-state directory.
 
-Open `/registry` and create a workspace. Save its owner key in a password
-manager. Publishing creates a separate reviewer key for that one package.
+Open `/registry` and create a workspace. Save its workspace owner key and
+recovery key in a password manager. The recovery key replaces a lost workspace
+owner key. Publishing creates a separate reviewer key for that one package.
 The reviewer opens `/review` with only that key. Approval consumes the key.
 
-The source verifier accepts GitHub repository URLs. Public repositories need
-no extra configuration. For a private repository, the deployment owner sets a
-credential such as `GIT_CREDENTIAL_PRIVATE_GITHUB` and pins it with
-`GIT_CREDENTIAL_PRIVATE_GITHUB_REPOSITORY=https://github.com/acme/private-skills`.
-The workspace binds the reference `PRIVATE_GITHUB` to that exact repository
-before publishing. The server never stores or returns the credential value, and
-the reference cannot be used by another workspace or to read another repository. It confirms
-the exact commit, reads the named JSON file at that commit, and signs the
-returned blob identifier. Browser fields cannot replace committed instructions
-or adapters. Set `GIT_VERIFY_API_BASE` only when running a compatible local
-verifier fixture.
+The service loads skill packages from GitHub repository URLs. Public
+repositories need no extra configuration. For a private repository, the
+deployment owner configures a named credential and its allowed repository.
+The workspace then binds that credential name to the same repository.
+The server never stores or returns the credential value. Another workspace
+cannot use its reference. The reference cannot read another repository.
+The service confirms the commit and reads the named JSON file there. It then
+signs the returned file identifier. Browser fields cannot replace committed
+instructions for the package or agent. Set `GIT_VERIFY_API_BASE` only for a
+local test server that returns the GitHub commit and file responses used here.
 
 ## Try the sandbox
 
-Open `/demo` or `/?demo=1`. It loads three complete packages, approval records,
-repository assignments, and receipts. Demo storage uses
-`demo:team-agent-skills:v2`. Reset restores the sample. Leaving deletes it.
+Open [`/demo`](https://team-agent-skills.sociobot.in/demo) or `/?demo=1`.
+It loads three complete packages, approval records, repository assignments,
+and receipts. Demo storage uses `demo:team-agent-skills:v2`. Reset restores the
+sample. Leaving the demo deletes its sample workspace.
 
 ## Release rules
 
-- Pilot and full release require a recorded review. Pilot reaches only
-  `pilot_repositories`; full release reaches all `repositories`.
+- Pilot and full release require a recorded review.
+- Pilot reaches only `pilot_repositories`; full release reaches all `repositories`.
 - A receipt requires an installed release, assigned repository, and named agent.
-- Downloads contain the signed payload, digest, Ed25519 signature, and signer key.
-- An owner issues a separate install credential for each package, repository,
-  and agent. That credential cannot list, publish, review, or release packages.
-- `/api/trust` exposes the signer key and fingerprint for consumer pinning.
+- Downloads include repository-native instructions and the signed JSON record.
+- An owner issues one install credential for each package, repository, and agent.
+- That credential cannot list, publish, review, or release packages.
+- `/api/trust` returns the signer key and its matching SHA-256 fingerprint.
 - Workspace identifiers are isolated, so teams may use the same package id.
-- Each trusted client IP has a 40-request limit. Factory ingress overwrites
-  `X-Forwarded-For`, and the service uses its first hop; local runs fall back
-  to the socket peer.
-
-Every statement above has an exact test in [.factory/claims.json](.factory/claims.json).
+- Each trusted client IP has its own 40-request limit.
 
 ## Test and build
 
@@ -74,36 +72,38 @@ cargo test --locked
 cargo build --release --locked
 ```
 
+Every product claim and its exact command are listed in
+[`.factory/claims.json`](.factory/claims.json).
+
 ## API workflow
 
-Create a workspace with `POST /api/session`. Send its owner key as
-`Authorization: Bearer <key>` to registry endpoints. Publish at
-`POST /api/skills` with `git_url`, `git_commit`, `source_path`, and optionally
-`git_credential_ref`; the source file follows
-[`examples/skill-package.json`](examples/skill-package.json). Before private
-publishes, the owner binds the deployment-managed, repository-pinned reference with
-`POST /api/git-credentials` using `{ "reference": "PRIVATE_GITHUB",
-"git_url": "https://github.com/acme/private-skills" }`. The response contains
-the package's one-time reviewer key.
+Create a workspace with `POST /api/session`. Send its workspace owner key as
+`Authorization: Bearer <key>` to registry endpoints. Publish with
+`POST /api/skills` and the source fields shown in
+[`examples/skill-package.json`](examples/skill-package.json).
 
-A reviewer sends that key to `GET /api/review`, then approves with
-`POST /api/review/approve`. The owner releases it with
-`PATCH /api/skills/:id/ring`, then issues an adapter credential with
-`POST /api/skills/:id/install-credentials`. Assigned agents fetch with only
-that scoped credential from
-`GET /api/repositories/:repository/agents/:agent/install/:id`.
+Before publishing from a private repository, bind its configured credential
+name with `POST /api/git-credentials`. The publish response contains the
+package's one-time reviewer key. A reviewer uses it at `GET /api/review` and
+`POST /api/review/approve`.
+
+The owner changes the release with `PATCH /api/skills/:id/ring`. The owner then
+issues an install credential at `POST /api/skills/:id/install-credentials`.
+The assigned agent uses that credential at
+`GET /api/repositories/:repository/agents/:agent/install/:id`. The response
+includes `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or a general instruction file.
 
 ## Managed plan
 
 The researched managed plan is $149 per team each month. Billing is not active
-in this release, so the product does not collect payment or claim a purchasable
-subscription. A future managed release must use the Sociobot billing API. The
-self-hosted MIT build remains available.
+in this release, so the product does not collect payment. A future managed
+release must use the Sociobot billing API. The self-hosted build is available
+under the MIT license.
 
 ## Deploy
 
-Build the root Dockerfile and mount `/data` for the database and signing
-identity.
+Build the root Dockerfile and mount `/data`. The mounted directory preserves
+the database and signing identity across restarts.
 
 ```sh
 docker build --build-arg BUILD_SHA=local -t team-agent-skills .
