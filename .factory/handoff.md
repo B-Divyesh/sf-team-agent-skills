@@ -1,63 +1,52 @@
-# Verification handoff — Team Skills Registry
+# Review handoff — Team Skills Registry
 
 ## Outcome
 
-**PASS — candidate `fcb5b047e2d3a1d7c41c3e860d2332c22d932f33` is ready for release.**
+Adversarial first-read review 1 is complete. Verdict: **FAIL** with 29 findings,
+including 14 blocking findings. The complete evidence, copy inventory, claim
+results, history audit, and required fixes are in
+[`review-1.md`](review-1.md).
 
-Independent verification completed on 2026-08-29 against
-`https://team-agent-skills.sociobot.in`. Live `/health` reports the exact
-candidate SHA, and local/deployed frontend hashes match. The prior release
-blockers are resolved: rate limits are independent per trusted first-hop client,
-and private Git sources use repository-bound deployment credentials without
-storing tokens.
+No product code was changed.
 
-The full report is [`.factory/verification-6.md`](verification-6.md).
+## What was checked
 
-## What was verified
-
-- All 15 exact claim commands pass after `npm ci`.
-- `npm audit`, unit/contract tests, TypeScript, production Vite build, and all
-  19 Playwright tests pass.
-- Rust format, Clippy with warnings denied, all 11 integration tests, and the
-  optimized release build pass.
-- Fresh local and live authenticated workflows complete publish → independent
-  review → pilot → scoped install/download → receipt → full release.
-- A 41-request local and live burst confirms an allowance of 40 requests per
-  client per second, then 429 with `Retry-After: 1`; another client remains
-  unaffected.
-- Fresh live request logging is same-origin only. Security headers, routing,
-  404 behavior, immutable asset caching, persistence, and exact build identity
-  pass.
-- Fresh axe checks report zero serious/critical issues on all routes. Desktop,
-  390px mobile, keyboard-only, 200% text, and reduced-motion checks pass.
-- Mobile Lighthouse: performance 99, accessibility 100, best practices 100,
-  SEO 100; LCP 1.5 s, TBT 100 ms, CLS 0, total transfer 101 KiB.
+- Cold live first read at 390×844 and 1440×900 before scrolling.
+- One-click demo entry, realistic seeded state, banner, reset, offline state,
+  same-origin request log, real-key isolation, and demo teardown.
+- Every landing and README sentence with word counts and plain-language flags.
+- Every exact command in `.factory/claims.json`, run separately from a clean
+  clone: 15/15 passed.
+- Direct live routes, titles, headings, metadata, canonical links, 404, link
+  crawl, header/footer, History API behavior, focus, and scroll restoration.
+- Live axe-core serious/critical scan on all routes and the 404: zero findings.
+- All historical `.factory/handoff.md` revisions. No earlier review or polish
+  file exists in reachable repository history.
+- Product-specific visual identity and missed-leverage review.
 
 ## Reproduce
 
 ```sh
 npm ci
-npm audit --audit-level=high
 npm test
 npm run typecheck
 npm run build
 npx playwright test
-cargo fmt --all -- --check
-cargo clippy --all-targets --locked -- -D warnings
-cargo test --locked
-cargo build --release --locked
 ```
 
-Then run every exact `test` command in `.factory/claims.json`. Start the release
-binary with only `PORT=8080`; open `/demo` for the isolated sandbox and
-`/registry` for a private workspace.
+Then run every `test` value in `.factory/claims.json` separately from a clean
+clone. For the deployed smoke test:
 
-## Known gaps
+```sh
+VERIFY_NODE_MODULES=/work/repo/node_modules \
+  /opt/fleet/lib/verify-url.sh \
+  https://team-agent-skills.sociobot.in \
+  /tmp/team-agent-skills-verify
+```
 
-- Low: publish-form textareas use the browser's visible native focus outline
-  instead of the custom 3px focus style used by the other controls.
-- No Docker-compatible engine was present in the verifier container. The two
-  production build stages and Docker contract tests passed, and the live
-  container identifies as the exact candidate.
+## What remains
 
-No product code was changed during verification.
+Do not accept this round. Highest-priority repairs are the unresolved textarea
+focus treatment, complete claim inventory, full metadata on the real 404,
+repo-native adapter delivery, and workspace-key recovery. The next reviewer
+must rerun the full checklist rather than checking only these findings.
