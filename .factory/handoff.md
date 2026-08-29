@@ -93,6 +93,18 @@ No Docker-compatible engine is installed here. The Dockerfile contract tests
 pass, and the release binary was exercised directly; the factory deployment
 uses the root multi-stage Dockerfile.
 
+## Live deployment verification
+
+The factory container deployment completed with image
+`sf-team-agent-skills:87c1de9bed05` on Container App revision
+`sf-team-agent-skills--0000004`. Live `/health` returned build SHA
+`87c1de9bed0548ae03bb2166fa2f43b7f4a72af1`. The live URL verifier passed at
+553 ms with no console errors and the same semantic/accessibility checks.
+
+The final public rate-limit proof used 100 concurrent `fetch` requests with
+100 different `X-Forwarded-For` values. The live result was exactly 40×200 and
+60×429; every 429 carried `Retry-After: 1`.
+
 ## Deploy
 
 Deploy after this commit with the work-order container configuration:
