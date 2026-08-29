@@ -1,0 +1,126 @@
+{
+  "checkedAt": "2026-08-29T04:19:50.370Z",
+  "build": {
+    "status": "ok",
+    "build_sha": "88350332d03467b1523bb7b33aa98605762a3fb6",
+    "signer_fingerprint": "dc38d19f50652481e7c5e10c7aadfa5f7e43202471eac3518a931c60d8c0aef5"
+  },
+  "firstScreen": true,
+  "demo": {
+    "oneClick": true,
+    "directQuery": true,
+    "packages": 3,
+    "banner": true,
+    "reset": true,
+    "offline": true,
+    "nativeFile": "CLAUDE.md"
+  },
+  "textareaFocus": "all >=3px at 390px",
+  "routeFocusAndBack": true,
+  "metadata": [
+    {
+      "path": "/",
+      "title": "Team Skills Registry — Release reviewed skills",
+      "h1": 1,
+      "description": "Publish reviewed agent skill packages and release exact versions to assigned repositories.",
+      "canonical": "https://team-agent-skills.sociobot.in",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    },
+    {
+      "path": "/demo",
+      "title": "Demo — Team Skills Registry",
+      "h1": 1,
+      "description": "Try a private skill registry with isolated sample data.",
+      "canonical": "https://team-agent-skills.sociobot.in/demo",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    },
+    {
+      "path": "/registry",
+      "title": "Private registry — Team Skills Registry",
+      "h1": 1,
+      "description": "Manage reviewed skill packages in a key-protected workspace.",
+      "canonical": "https://team-agent-skills.sociobot.in/registry",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    },
+    {
+      "path": "/review",
+      "title": "Review a package — Team Skills Registry",
+      "h1": 1,
+      "description": "Open and approve one signed package with a one-time reviewer key.",
+      "canonical": "https://team-agent-skills.sociobot.in/review",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    },
+    {
+      "path": "/privacy",
+      "title": "Privacy — Team Skills Registry",
+      "h1": 1,
+      "description": "Read how Team Skills Registry handles workspace and demo data.",
+      "canonical": "https://team-agent-skills.sociobot.in/privacy",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    },
+    {
+      "path": "/terms",
+      "title": "Terms — Team Skills Registry",
+      "h1": 1,
+      "description": "Read the terms for Team Skills Registry.",
+      "canonical": "https://team-agent-skills.sociobot.in/terms",
+      "ogImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "twitterImage": "https://team-agent-skills.sociobot.in/social-card.webp",
+      "privacy": 1,
+      "terms": 1
+    }
+  ],
+  "notFound": {
+    "status": 404,
+    "completeMetadata": true
+  },
+  "axe": [
+    {
+      "path": "/",
+      "violations": []
+    },
+    {
+      "path": "/demo",
+      "violations": []
+    },
+    {
+      "path": "/registry",
+      "violations": []
+    },
+    {
+      "path": "/review",
+      "violations": []
+    },
+    {
+      "path": "/privacy",
+      "violations": []
+    },
+    {
+      "path": "/terms",
+      "violations": []
+    },
+    {
+      "path": "/definitely-missing-review-route",
+      "violations": []
+    }
+  ],
+  "origins": [
+    "https://team-agent-skills.sociobot.in"
+  ],
+  "consoleErrorsOnNormalRoutes": []
+}
