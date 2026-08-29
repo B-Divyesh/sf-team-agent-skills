@@ -157,8 +157,8 @@
     "id": "mit-license-build",
     "claim": "The self-hosted build is available under the MIT license.",
     "where": "landing managed-plan section and README",
-    "test": "npm run build && node --test --test-name-pattern='@claim:mit-license-build' tests/claims.test.mjs",
-    "sandbox": "fresh clone; complete the production frontend build, assert LICENSE is MIT, and assert the Dockerfile includes locked frontend and backend production builds"
+    "test": "npm run build && cargo build --release --locked && node --test --test-name-pattern='@claim:mit-license-build' tests/claims.test.mjs",
+    "sandbox": "fresh clone; complete both production builds, assert LICENSE is MIT, and assert the Dockerfile includes locked frontend and backend production builds"
   },
   {
     "id": "managed-plan-status",

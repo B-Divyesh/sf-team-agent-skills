@@ -10,7 +10,7 @@ and [live demo at 390 px](evidence/polish-1/live/demo-mobile.png).
 | --- | --- | --- | --- |
 | F-1-1 | Added the 3 px coral focus ring to every textarea. | Playwright `publish textareas use the designed focus ring` at 390 and 1366 px. | Audit measured every publish textarea at ≥3 px on `/demo`; demo screenshot above. |
 | F-1-2 | Registered `demo-sample-content` and assert exactly three complete packages with approvals and source details. | Clean-clone `@claim:demo-sample-content`; [`clean-claims.log`](evidence/polish-1/clean-claims.log). | Cold `/demo` contained exactly three packages and their review records. |
-| F-1-3 | Registered `mit-license-build`; its command builds the frontend and checks the MIT license and locked container builds. | Clean-clone `@claim:mit-license-build`. | Landing now says only that the self-hosted registry is MIT licensed. |
+| F-1-3 | Registered `mit-license-build`; its command completes both production builds and checks the MIT license and locked container stages. | Clean-clone `@claim:mit-license-build`. | Landing now says only that the self-hosted registry is MIT licensed. |
 | F-1-4 | Removed the speculative future billing-integration sentence. | `@claim:managed-plan-status` and copy audit. | Cold `/` has no checkout and no future-capability sentence. |
 | F-1-5 | Registered and tagged demo teardown. | Clean-clone `@claim:demo-teardown`. | **Start for real** removes the demo key and opens `/registry`. |
 | F-1-6 | Registered `/api/trust` and verify the SHA-256 relationship between its key and fingerprint. | Clean-clone `claim_trust_endpoint`. | Live `/health` returns the deployed signer fingerprint. |
