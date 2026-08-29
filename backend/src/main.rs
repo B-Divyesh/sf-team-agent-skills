@@ -1009,14 +1009,12 @@ async fn rate_limit(
     if request.uri().path() == "/health" {
         return next.run(request).await;
     }
-    // Forwarded headers are caller input at this service boundary. Rate limits
-    // deliberately use the connected peer until a trusted proxy integration is
-    // configured, so changing X-Forwarded-For cannot create a new allowance.
-    let ip = request
-        .extensions()
-        .get::<ConnectInfo<SocketAddr>>()
-        .map(|value| value.0.ip().to_string())
-        .unwrap_or_else(|| "unknown-peer".to_string());
+    // Forwarded headers are caller input at this service boundary, and Azure
+    // may rotate its ingress peer between connections. Until the edge supplies
+    // an authenticated client identity, use one public bucket: no header or
+    // proxy-hop change can manufacture a fresh allowance.
+    let _peer = request.extensions().get::<ConnectInfo<SocketAddr>>();
+    let ip = "public".to_string();
     let denied = {
         let mut map = state.limits.lock().expect("rate limit lock");
         let entry = map.entry(ip).or_insert((Instant::now(), 0));

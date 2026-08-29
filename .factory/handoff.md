@@ -22,9 +22,10 @@ SQLite, Vite TypeScript frontend, and container deployment class.
   one skill, repository, and agent. Consumer installs require that credential
   at `/api/repositories/:repository/agents/:agent/install/:id`; owner keys and
   scoped credentials cannot cross the administration/install boundary.
-- **Rate limit:** The limiter ignores caller-controlled `X-Forwarded-For` and
-  keys on the connected peer address. It still returns 429 plus `Retry-After: 1`
-  after 40 requests per second.
+- **Rate limit:** The limiter ignores caller-controlled forwarding identity and
+  uses one public request window until the deployment edge can supply an
+  authenticated client identity. It returns 429 plus `Retry-After: 1` after 40
+  requests per second.
 - **Regression repairs:** The skip link focuses main synchronously, removing
   the dev-server race. Demo downloads now use `team-agent-skill/v2`.
 

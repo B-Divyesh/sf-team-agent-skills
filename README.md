@@ -47,7 +47,7 @@ repository assignments, and receipts. Demo storage uses
   and agent. That credential cannot list, publish, review, or release packages.
 - `/api/trust` exposes the signer key and fingerprint for consumer pinning.
 - Workspace identifiers are isolated, so teams may use the same package id.
-- The public 40-request limit uses the connected peer, not caller-provided
+- Public API requests share a 40-request limit. It does not trust
   `X-Forwarded-For` values.
 
 Every statement above has an exact test in [.factory/claims.json](.factory/claims.json).

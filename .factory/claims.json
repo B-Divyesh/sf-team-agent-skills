@@ -85,7 +85,7 @@
   },
   {
     "id": "peer-rate-limit",
-    "claim": "Changing a caller-supplied forwarded header cannot bypass the 40-request limit.",
+    "claim": "Public requests share a 40-request limit that forwarded headers cannot bypass.",
     "where": "README",
     "test": "cargo test --locked claim_peer_rate_limit",
     "sandbox": "fresh server; make 40 public requests, then vary X-Forwarded-For and assert every excess request returns 429 with Retry-After"
