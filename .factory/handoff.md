@@ -67,7 +67,8 @@ tests pass and the release binary was exercised directly.
 
 ## Deploy
 
-Deploy this commit with:
+Deployment completed from repair commit
+`c3edb581efb087359a4729d3a0131a8018a34dd7` using:
 
 ```sh
 /opt/fleet/lib/deploy-container.sh team-agent-skills /work/repo Dockerfile 8080
@@ -77,6 +78,19 @@ The deployment needs no Git credential variables for public repositories. To
 enable a private repository, configure a least-privilege GitHub credential and
 its canonical repository boundary as described above; do not add token values
 to the workspace, package, or repository.
+
+Live verification passed at `https://team-agent-skills.sociobot.in`:
+
+- `/health` returned the deployed commit above.
+- `verify-url.sh` passed in 629 ms with no browser console errors and the same
+  title, language, heading, landmark, and alt-text checks as local.
+- The live response sent CSP, HSTS, `nosniff`, Referrer-Policy,
+  Permissions-Policy, and immutable asset caching.
+- A 40-request burst for trusted first hop `198.18.90.1` returned 40×200; a
+  request for `198.18.90.2` returned 200; a 41st request for the first client
+  returned 429 with `Retry-After: 1`.
+
+Live browser evidence is in `.factory/evidence/repair-5/live-verify/`.
 
 ## Known gap
 
