@@ -41,7 +41,7 @@ and [live demo at 390 px](evidence/polish-1/live/demo-mobile.png).
 ## Complete verification
 
 - Every one of 24 claim commands passed from fresh clone
-  `/tmp/team-agent-skills-claims-DWf1BC`.
+  `/tmp/team-agent-skills-final-claims-NmiL6a` at `986dabf`.
 - `npm test`, `npm run typecheck`, `npm run build`, and 26 Playwright tests pass.
 - `cargo fmt --all -- --check`, strict Clippy, 16 integration tests, and the
   locked release build pass.

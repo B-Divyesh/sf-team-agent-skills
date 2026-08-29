@@ -1,91 +1,91 @@
 
 ===== demo-separation =====
 npx playwright test --grep @claim:demo-separation
-[WebServer] (node:16090) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23269) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
   1 passed (2.9s)
 
 ===== demo-sample-content =====
 npx playwright test --grep @claim:demo-sample-content
-[WebServer] (node:16221) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23419) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23419) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
   1 passed (2.7s)
 
 ===== demo-teardown =====
 npx playwright test --grep @claim:demo-teardown
-[WebServer] (node:16355) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23531) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16378) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23550) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16378) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23550) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
   1 passed (2.7s)
 
 ===== execution-receipt =====
 npx playwright test --grep @claim:execution-receipt
-[WebServer] (node:16490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16509) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23679) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16509) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23679) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
-  1 passed (2.7s)
+  1 passed (2.6s)
 
 ===== demo-local-data =====
 npx playwright test --grep @claim:demo-local-data
-[WebServer] (node:16640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23793) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23813) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23813) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
   1 passed (2.7s)
 
 ===== review-required =====
 npx playwright test --grep @claim:review-required
-[WebServer] (node:16770) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:23922) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:23942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
-  1 passed (3.2s)
+  1 passed (4.5s)
 
 ===== package-contents =====
 npx playwright test --grep @claim:package-contents
-[WebServer] (node:16899) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:24061) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:16918) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:24080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:16918) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:24080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
   1 passed (2.6s)
@@ -93,16 +93,16 @@ Running 1 test using 1 worker
 ===== private-workspace =====
 cargo test --locked claim_private_workspace
    Compiling proc-macro2 v1.0.107
-   Compiling quote v1.0.47
    Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
    Compiling libc v0.2.189
    Compiling syn v3.0.4
    Compiling syn v2.0.119
    Compiling cfg-if v1.0.4
    Compiling pin-project-lite v0.2.17
-   Compiling find-msvc-tools v0.1.11
    Compiling futures-core v0.3.34
    Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.11
    Compiling cc v1.4.4
    Compiling synstructure v0.13.2
    Compiling once_cell v1.21.4
@@ -115,65 +115,65 @@ cargo test --locked claim_private_workspace
    Compiling yoke v0.8.3
    Compiling displaydoc v0.2.7
    Compiling zerovec v0.11.8
-   Compiling socket2 v0.6.5
    Compiling mio v1.2.2
+   Compiling socket2 v0.6.5
    Compiling itoa v1.0.18
    Compiling memchr v2.8.3
    Compiling tinystr v0.8.4
    Compiling tracing-attributes v0.1.31
-   Compiling litemap v0.8.3
    Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
    Compiling icu_locale_core v2.3.0
    Compiling potential_utf v0.1.6
    Compiling zerotrie v0.2.5
    Compiling utf8_iter v1.0.4
-   Compiling futures-task v0.3.34
-   Compiling futures-io v0.3.34
-   Compiling serde_core v1.0.229
    Compiling icu_normalizer_data v2.3.0
+   Compiling futures-io v0.3.34
    Compiling zeroize v1.9.0
+   Compiling futures-task v0.3.34
+   Compiling serde_core v1.0.229
    Compiling icu_provider v2.3.1
    Compiling icu_collections v2.3.0
    Compiling ring v0.17.14
    Compiling errno v0.3.14
    Compiling futures-sink v0.3.34
-   Compiling vcpkg v0.2.15
-   Compiling pkg-config v0.3.34
-   Compiling icu_properties_data v2.3.0
    Compiling log v0.4.34
+   Compiling icu_properties_data v2.3.0
+   Compiling pkg-config v0.3.34
    Compiling smallvec v1.15.2
+   Compiling vcpkg v0.2.15
    Compiling signal-hook-registry v1.4.8
    Compiling tracing-core v0.1.36
    Compiling tokio-macros v2.7.2
    Compiling equivalent v1.0.2
    Compiling percent-encoding v2.3.2
-   Compiling rustls-pki-types v1.15.1
    Compiling tokio v1.53.1
-   Compiling untrusted v0.9.0
-   Compiling serde v1.0.229
+   Compiling rustls-pki-types v1.15.1
    Compiling version_check v0.9.5
+   Compiling serde v1.0.229
+   Compiling untrusted v0.9.0
    Compiling generic-array v0.14.7
    Compiling icu_properties v2.3.0
    Compiling serde_derive v1.0.229
-   Compiling slab v0.4.12
    Compiling hashbrown v0.17.1
    Compiling scopeguard v1.2.0
+   Compiling slab v0.4.12
    Compiling lock_api v0.4.14
    Compiling indexmap v2.14.0
    Compiling tracing v0.1.44
-   Compiling parking_lot_core v0.9.12
    Compiling subtle v2.6.1
+   Compiling parking_lot_core v0.9.12
    Compiling typenum v1.20.1
    Compiling form_urlencoded v1.2.2
+   Compiling autocfg v1.5.1
    Compiling rustls v0.23.43
    Compiling zmij v1.0.23
-   Compiling autocfg v1.5.1
    Compiling num-traits v0.2.19
    Compiling futures-util v0.3.34
    Compiling getrandom v0.2.17
    Compiling serde_json v1.0.151
-   Compiling block-buffer v0.10.4
    Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
    Compiling http v1.5.0
    Compiling digest v0.10.7
    Compiling webpki-roots v1.0.9
@@ -183,45 +183,45 @@ cargo test --locked claim_private_workspace
    Compiling openssl-sys v0.9.117
    Compiling thiserror v2.0.20
    Compiling allocator-api2 v0.2.21
-   Compiling iana-time-zone v0.1.65
    Compiling foldhash v0.1.5
+   Compiling iana-time-zone v0.1.65
    Compiling hashbrown v0.15.5
    Compiling sha2 v0.10.9
    Compiling icu_normalizer v2.3.0
    Compiling tokio-util v0.7.19
    Compiling futures-channel v0.3.34
    Compiling thiserror-impl v2.0.20
-   Compiling base64 v0.22.1
-   Compiling ryu v1.0.23
-   Compiling httparse v1.10.1
    Compiling crc-catalog v2.5.0
-   Compiling tower-service v0.3.3
+   Compiling httparse v1.10.1
+   Compiling ryu v1.0.23
    Compiling bitflags v2.13.1
+   Compiling tower-service v0.3.3
+   Compiling base64 v0.22.1
    Compiling parking v2.2.1
    Compiling event-listener v5.4.2
-   Compiling crc v3.4.0
    Compiling serde_urlencoded v0.7.1
-   Compiling idna_adapter v1.2.2
+   Compiling crc v3.4.0
    Compiling rustls-webpki v0.103.15
+   Compiling idna_adapter v1.2.2
    Compiling hashlink v0.10.0
    Compiling crossbeam-queue v0.3.13
    Compiling webpki-roots v0.26.11
    Compiling either v1.18.0
    Compiling spin v0.9.9
    Compiling libsqlite3-sys v0.30.1
-   Compiling httpdate v1.0.3
-   Compiling try-lock v0.2.5
-   Compiling fnv v1.0.7
    Compiling atomic-waker v1.1.2
-   Compiling h2 v0.4.19
+   Compiling fnv v1.0.7
+   Compiling try-lock v0.2.5
+   Compiling httpdate v1.0.3
    Compiling want v0.3.1
+   Compiling h2 v0.4.19
    Compiling parking_lot v0.12.5
    Compiling idna v1.1.0
-   Compiling openssl v0.10.81
    Compiling foreign-types-shared v0.1.1
+   Compiling openssl v0.10.81
    Compiling foreign-types v0.3.2
-   Compiling hyper v1.11.1
    Compiling tokio-stream v0.1.19
+   Compiling hyper v1.11.1
    Compiling url v2.5.8
    Compiling futures-intrusive v0.5.0
    Compiling chrono v0.4.45
@@ -229,28 +229,28 @@ cargo test --locked claim_private_workspace
    Compiling atoi v2.0.0
    Compiling openssl-macros v0.1.1
    Compiling sync_wrapper v1.0.2
-   Compiling native-tls v0.2.18
    Compiling ipnet v2.12.1
+   Compiling zerocopy v0.8.56
    Compiling semver v1.0.28
    Compiling mime v0.3.17
-   Compiling zerocopy v0.8.56
+   Compiling native-tls v0.2.18
    Compiling tower-layer v0.3.3
    Compiling unicase v2.9.0
-   Compiling mime_guess v2.0.5
-   Compiling sqlx-core v0.8.6
    Compiling rustc_version v0.4.1
+   Compiling mime_guess v2.0.5
    Compiling hyper-util v0.1.20
+   Compiling sqlx-core v0.8.6
    Compiling futures-executor v0.3.34
    Compiling flume v0.11.1
-   Compiling openssl-probe v0.2.1
    Compiling rustversion v1.0.23
+   Compiling openssl-probe v0.2.1
    Compiling sqlx-sqlite v0.8.6
    Compiling curve25519-dalek v4.1.3
    Compiling tower v0.5.3
    Compiling dotenvy v0.15.7
+   Compiling hex v0.4.3
    Compiling heck v0.5.0
    Compiling regex-syntax v0.8.11
-   Compiling hex v0.4.3
    Compiling sqlx-macros-core v0.8.6
    Compiling regex-automata v0.4.18
    Compiling ppv-lite86 v0.2.21
@@ -260,14 +260,14 @@ cargo test --locked claim_private_workspace
    Compiling curve25519-dalek-derive v0.1.1
    Compiling async-trait v0.1.92
    Compiling getrandom v0.4.3
+   Compiling lazy_static v1.5.0
    Compiling rustix v1.1.4
    Compiling http-range-header v0.4.2
-   Compiling lazy_static v1.5.0
    Compiling signature v2.2.0
-   Compiling sharded-slab v0.1.7
+   Compiling tower-http v0.6.11
    Compiling ed25519 v2.2.3
    Compiling axum-core v0.4.5
-   Compiling tower-http v0.6.11
+   Compiling sharded-slab v0.1.7
    Compiling rand_chacha v0.3.1
    Compiling hyper-rustls v0.27.9
    Compiling hyper-tls v0.6.0
@@ -276,21 +276,21 @@ cargo test --locked claim_private_workspace
    Compiling tracing-serde v0.2.0
    Compiling tracing-log v0.2.0
    Compiling serde_path_to_error v0.1.20
-   Compiling thread_local v1.1.10
    Compiling encoding_rs v0.8.35
-   Compiling matchit v0.7.3
+   Compiling thread_local v1.1.10
    Compiling linux-raw-sys v0.12.1
    Compiling nu-ansi-term v0.50.3
-   Compiling tracing-subscriber v0.3.23
+   Compiling matchit v0.7.3
    Compiling axum v0.7.9
+   Compiling tracing-subscriber v0.3.23
    Compiling reqwest v0.12.28
    Compiling sqlx v0.8.6
-   Compiling ed25519-dalek v2.2.0
    Compiling rand v0.8.8
+   Compiling ed25519-dalek v2.2.0
    Compiling fastrand v2.5.0
    Compiling tempfile v3.27.0
-   Compiling team-agent-skills v1.2.0 (/tmp/team-agent-skills-claims-DWf1BC)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 22s
+   Compiling team-agent-skills v1.2.0 (/tmp/team-agent-skills-final-claims-NmiL6a)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 21s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -300,16 +300,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:09.607641Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:09.608456Z","level":"INFO","fields":{"message":"listening","port":"40031"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:47.576571Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:47.577396Z","level":"INFO","fields":{"message":"listening","port":"39165"},"target":"team_agent_skills"}
 test claim_private_workspace ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.22s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.25s
 
 
 ===== workspace-recovery =====
 cargo test --locked claim_workspace_recovery
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.40s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -319,11 +319,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:10.176075Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:10.176839Z","level":"INFO","fields":{"message":"listening","port":"44423"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:48.264599Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:48.265508Z","level":"INFO","fields":{"message":"listening","port":"34493"},"target":"team_agent_skills"}
 test claim_workspace_recovery ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.32s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.22s
 
 
 ===== secret-reference-format =====
@@ -338,16 +338,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:10.652642Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:10.653486Z","level":"INFO","fields":{"message":"listening","port":"34201"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:48.692053Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:48.692833Z","level":"INFO","fields":{"message":"listening","port":"36547"},"target":"team_agent_skills"}
 test claim_secret_reference_format ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.28s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.23s
 
 
 ===== git-signed-package =====
 cargo test --locked claim_git_signed_package
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -357,16 +357,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:11.120339Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:11.121098Z","level":"INFO","fields":{"message":"listening","port":"41891"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:49.178294Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:49.179047Z","level":"INFO","fields":{"message":"listening","port":"34543"},"target":"team_agent_skills"}
 test claim_git_signed_package ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.31s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.33s
 
 
 ===== independent-one-time-review =====
 cargo test --locked claim_independent_one_time_review
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -376,11 +376,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:11.614071Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:11.614800Z","level":"INFO","fields":{"message":"listening","port":"39577"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:49.692937Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:49.693766Z","level":"INFO","fields":{"message":"listening","port":"40455"},"target":"team_agent_skills"}
 test claim_independent_one_time_review ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.25s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.34s
 
 
 ===== governed-execution-receipt =====
@@ -395,16 +395,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:12.120964Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:12.121781Z","level":"INFO","fields":{"message":"listening","port":"42769"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:50.283618Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:50.284421Z","level":"INFO","fields":{"message":"listening","port":"42443"},"target":"team_agent_skills"}
 test claim_governed_execution_receipt ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 2.16s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 2.24s
 
 
 ===== pilot-ring-access =====
 cargo test --locked claim_pilot_ring_access
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -414,11 +414,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:14.465813Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:14.466758Z","level":"INFO","fields":{"message":"listening","port":"43065"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:52.658224Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:52.659184Z","level":"INFO","fields":{"message":"listening","port":"39529"},"target":"team_agent_skills"}
 test claim_pilot_ring_access ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.38s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.42s
 
 
 ===== scoped-install-credentials =====
@@ -433,25 +433,25 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:15.005897Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:15.006647Z","level":"INFO","fields":{"message":"listening","port":"34767"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:53.338901Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:53.339660Z","level":"INFO","fields":{"message":"listening","port":"37587"},"target":"team_agent_skills"}
 test claim_scoped_install_credentials ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.28s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.39s
 
 
 ===== repo-native-install =====
 npx playwright test --grep @claim:repo-native-install
-[WebServer] (node:20884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:28042) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:20903) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:28061) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:20903) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:28061) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
-  1 passed (2.8s)
+  1 passed (2.7s)
 
 ===== trusted-client-rate-limit =====
 cargo test --locked claim_trusted_client_rate_limit
@@ -465,11 +465,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:19.857242Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:19.858071Z","level":"INFO","fields":{"message":"listening","port":"44527"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:58.182274Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:58.183040Z","level":"INFO","fields":{"message":"listening","port":"36395"},"target":"team_agent_skills"}
 test claim_trusted_client_rate_limit ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.40s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.24s
 
 
 ===== private-git-source =====
@@ -484,16 +484,16 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:20.385523Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:20.386261Z","level":"INFO","fields":{"message":"listening","port":"36611"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:58.642876Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:58.643646Z","level":"INFO","fields":{"message":"listening","port":"42527"},"target":"team_agent_skills"}
 test claim_private_git_source ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.36s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.31s
 
 
 ===== trust-endpoint =====
 cargo test --locked claim_trust_endpoint
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running unittests backend/src/main.rs (target/debug/deps/team_agent_skills-0be5a032ccd57c2a)
 
 running 0 tests
@@ -503,8 +503,8 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:20.922787Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:20.923555Z","level":"INFO","fields":{"message":"listening","port":"38267"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:59.158958Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:59.159713Z","level":"INFO","fields":{"message":"listening","port":"34971"},"target":"team_agent_skills"}
 test claim_trust_endpoint ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.26s
@@ -522,11 +522,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:21.376098Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:21.376859Z","level":"INFO","fields":{"message":"listening","port":"43839"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:59.665233Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:24:59.666074Z","level":"INFO","fields":{"message":"listening","port":"41385"},"target":"team_agent_skills"}
 test claim_port_configuration ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.25s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.30s
 
 
 ===== database-path-configuration =====
@@ -541,11 +541,11 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:21.743605Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:21.744366Z","level":"INFO","fields":{"message":"listening","port":"38249"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.112237Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.113033Z","level":"INFO","fields":{"message":"listening","port":"34579"},"target":"team_agent_skills"}
 test claim_database_path_configuration ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.15s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.21s
 
 
 ===== persistent-data-and-signing-key =====
@@ -560,17 +560,17 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/api.rs (target/debug/deps/api-1438d6beb24aa2c1)
 
 running 1 test
-{"timestamp":"2026-08-29T04:11:22.142473Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:22.143241Z","level":"INFO","fields":{"message":"listening","port":"40147"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:22.234550Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"persisted/supplied"},"target":"team_agent_skills"}
-{"timestamp":"2026-08-29T04:11:22.235306Z","level":"INFO","fields":{"message":"listening","port":"40617"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.552928Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"generated"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.553740Z","level":"INFO","fields":{"message":"listening","port":"40485"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.645999Z","level":"INFO","fields":{"message":"Team Skills Registry started","database":"supplied","signing_identity":"persisted/supplied"},"target":"team_agent_skills"}
+{"timestamp":"2026-08-29T04:25:00.646762Z","level":"INFO","fields":{"message":"listening","port":"39645"},"target":"team_agent_skills"}
 test claim_persistent_data_and_signing_key ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.33s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.32s
 
 
 ===== mit-license-build =====
-npm run build && node --test --test-name-pattern='@claim:mit-license-build' tests/claims.test.mjs
+npm run build && cargo build --release --locked && node --test --test-name-pattern='@claim:mit-license-build' tests/claims.test.mjs
 
 > team-agent-skills@1.2.0 build
 > vite build
@@ -583,12 +583,194 @@ computing gzip size...
 ../dist/index.html                  1.54 kB │ gzip:  0.57 kB
 ../dist/assets/index-FXHrPII6.css  16.38 kB │ gzip:  4.29 kB
 ../dist/assets/index-hwfxomz8.js   35.92 kB │ gzip: 11.10 kB
-✓ built in 188ms
+✓ built in 213ms
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling syn v3.0.4
+   Compiling syn v2.0.119
+   Compiling synstructure v0.13.2
+   Compiling zerovec-derive v0.11.6
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling displaydoc v0.2.7
+   Compiling find-msvc-tools v0.1.11
+   Compiling shlex v2.0.1
+   Compiling serde_core v1.0.229
+   Compiling cc v1.4.4
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling icu_properties_data v2.3.0
+   Compiling pin-project-lite v0.2.17
+   Compiling icu_normalizer_data v2.3.0
+   Compiling cfg-if v1.0.4
+   Compiling serde v1.0.229
+   Compiling futures-core v0.3.34
+   Compiling zerofrom v0.1.8
+   Compiling serde_derive v1.0.229
+   Compiling ring v0.17.14
+   Compiling stable_deref_trait v1.2.1
+   Compiling bytes v1.12.1
+   Compiling yoke v0.8.3
+   Compiling tracing-attributes v0.1.31
+   Compiling once_cell v1.21.4
+   Compiling itoa v1.0.18
+   Compiling smallvec v1.15.2
+   Compiling autocfg v1.5.1
+   Compiling zmij v1.0.23
+   Compiling futures-sink v0.3.34
+   Compiling num-traits v0.2.19
+   Compiling zerovec v0.11.8
+   Compiling errno v0.3.14
+   Compiling parking_lot_core v0.9.12
+   Compiling signal-hook-registry v1.4.8
+   Compiling tracing-core v0.1.36
+   Compiling tokio-macros v2.7.2
+   Compiling mio v1.2.2
+   Compiling socket2 v0.6.5
+   Compiling memchr v2.8.3
+   Compiling rustls v0.23.43
+   Compiling serde_json v1.0.151
+   Compiling tokio v1.53.1
+   Compiling zeroize v1.9.0
+   Compiling crossbeam-utils v0.8.22
+   Compiling log v0.4.34
+   Compiling tinystr v0.8.4
+   Compiling getrandom v0.2.17
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling slab v0.4.12
+   Compiling futures-task v0.3.34
+   Compiling futures-io v0.3.34
+   Compiling icu_locale_core v2.3.0
+   Compiling futures-util v0.3.34
+   Compiling tracing v0.1.44
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling utf8_iter v1.0.4
+   Compiling percent-encoding v2.3.2
+   Compiling thiserror v2.0.20
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling rustls-pki-types v1.15.1
+   Compiling scopeguard v1.2.0
+   Compiling pkg-config v0.3.34
+   Compiling typenum v1.20.1
+   Compiling vcpkg v0.2.15
+   Compiling libsqlite3-sys v0.30.1
+   Compiling lock_api v0.4.14
+   Compiling http v1.5.0
+   Compiling thiserror-impl v2.0.20
+   Compiling subtle v2.6.1
+   Compiling untrusted v0.9.0
+   Compiling http-body v1.1.0
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling form_urlencoded v1.2.2
+   Compiling equivalent v1.0.2
+   Compiling idna_adapter v1.2.2
+   Compiling rustls-webpki v0.103.15
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling futures-channel v0.3.34
+   Compiling httparse v1.10.1
+   Compiling base64 v0.22.1
+   Compiling tower-service v0.3.3
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.1.5
+   Compiling hashbrown v0.15.5
+   Compiling digest v0.10.7
+   Compiling idna v1.1.0
+   Compiling parking_lot v0.12.5
+   Compiling webpki-roots v1.0.9
+   Compiling iana-time-zone v0.1.65
+   Compiling crc-catalog v2.5.0
+   Compiling parking v2.2.1
+   Compiling hashbrown v0.17.1
+   Compiling cpufeatures v0.2.17
+   Compiling try-lock v0.2.5
+   Compiling httpdate v1.0.3
+   Compiling sha2 v0.10.9
+   Compiling want v0.3.1
+   Compiling indexmap v2.14.0
+   Compiling event-listener v5.4.2
+   Compiling crc v3.4.0
+   Compiling chrono v0.4.45
+   Compiling webpki-roots v0.26.11
+   Compiling url v2.5.8
+   Compiling futures-intrusive v0.5.0
+   Compiling crossbeam-queue v0.3.13
+   Compiling tokio-stream v0.1.19
+   Compiling hashlink v0.10.0
+   Compiling either v1.18.0
+   Compiling spin v0.9.9
+   Compiling sync_wrapper v1.0.2
+   Compiling ryu v1.0.23
+   Compiling zerocopy v0.8.56
+   Compiling mime v0.3.17
+   Compiling atomic-waker v1.1.2
+   Compiling tower-layer v0.3.3
+   Compiling unicase v2.9.0
+   Compiling semver v1.0.28
+   Compiling rustc_version v0.4.1
+   Compiling mime_guess v2.0.5
+   Compiling sqlx-core v0.8.6
+   Compiling serde_urlencoded v0.7.1
+   Compiling hyper v1.11.1
+   Compiling flume v0.11.1
+   Compiling futures-executor v0.3.34
+   Compiling atoi v2.0.0
+   Compiling http-body-util v0.1.5
+   Compiling ipnet v2.12.1
+   Compiling rustversion v1.0.23
+   Compiling hyper-util v0.1.20
+   Compiling sqlx-sqlite v0.8.6
+   Compiling curve25519-dalek v4.1.3
+   Compiling tower v0.5.3
+   Compiling regex-syntax v0.8.11
+   Compiling heck v0.5.0
+   Compiling hex v0.4.3
+   Compiling dotenvy v0.15.7
+   Compiling sqlx-macros-core v0.8.6
+   Compiling regex-automata v0.4.18
+   Compiling ppv-lite86 v0.2.21
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-util v0.7.19
+   Compiling rand_core v0.6.4
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling async-trait v0.1.92
+   Compiling http-range-header v0.4.2
+   Compiling signature v2.2.0
+   Compiling bitflags v2.13.1
+   Compiling lazy_static v1.5.0
+   Compiling sharded-slab v0.1.7
+   Compiling tower-http v0.6.11
+   Compiling ed25519 v2.2.3
+   Compiling axum-core v0.4.5
+   Compiling rand_chacha v0.3.1
+   Compiling hyper-rustls v0.27.9
+   Compiling matchers v0.2.0
+   Compiling sqlx-macros v0.8.6
+   Compiling tracing-serde v0.2.0
+   Compiling tracing-log v0.2.0
+   Compiling serde_path_to_error v0.1.20
+   Compiling thread_local v1.1.10
+   Compiling matchit v0.7.3
+   Compiling nu-ansi-term v0.50.3
+   Compiling tracing-subscriber v0.3.23
+   Compiling axum v0.7.9
+   Compiling reqwest v0.12.28
+   Compiling sqlx v0.8.6
+   Compiling rand v0.8.8
+   Compiling ed25519-dalek v2.2.0
+   Compiling team-agent-skills v1.2.0 (/tmp/team-agent-skills-final-claims-NmiL6a)
+    Finished `release` profile [optimized] target(s) in 2m 31s
 TAP version 13
 # Subtest: @claim:mit-license-build self-hosted build is MIT licensed and has a production build command
 ok 1 - @claim:mit-license-build self-hosted build is MIT licensed and has a production build command
   ---
-  duration_ms: 6.356867
+  duration_ms: 8.694594
   type: 'test'
   ...
 1..1
@@ -599,19 +781,21 @@ ok 1 - @claim:mit-license-build self-hosted build is MIT licensed and has a prod
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 86.716626
+# duration_ms 87.579744
 
 ===== managed-plan-status =====
 npx playwright test --grep @claim:managed-plan-status
-[WebServer] (node:21188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:32691) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 Running 1 test using 1 worker
-(node:21207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:32711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:21207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:32711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ·
-  1 passed (2.1s)
+  1 passed (2.8s)
 
 ALL CLAIMS PASSED: 24
+CLEAN_CLONE=/tmp/team-agent-skills-final-claims-NmiL6a
+SOURCE_COMMIT=986dabfb1fbec025703f2dace6102218ab8f5303

@@ -45,7 +45,8 @@ Results: npm audit found 0 vulnerabilities; unit/file-contract tests passed
 format, strict Clippy, frontend build, and locked release build passed.
 
 Every exact `test` command in `.factory/claims.json` was then run separately
-from fresh clone `/tmp/team-agent-skills-claims-DWf1BC`: 24/24 passed. The full
+from fresh clone `/tmp/team-agent-skills-final-claims-NmiL6a` at source commit
+`986dabfb1fbec025703f2dace6102218ab8f5303`: 24/24 passed. The full
 output is in `.factory/evidence/polish-1/clean-claims.log`.
 
 Local production checks:
