@@ -1,0 +1,95 @@
+{
+  "first": {
+    "title": "Team Skills Registry — Release reviewed skills",
+    "lang": "en",
+    "h1s": 1,
+    "headline": "Release reviewed skills across repositories",
+    "body": [
+      "Skip to content",
+      "▰Team Skills",
+      "Registry",
+      "Demo",
+      "Registry",
+      "Review",
+      "Privacy",
+      "TEAM SKILL RELEASES",
+      "Release reviewed skills across repositories",
+      "For engineering leads who need one checked instruction set for every coding agent.",
+      "Try it with sample data",
+      "Open three complete skill packages and their review records.",
+      "Sample data stays in this browser.",
+      "Receipts preserve the exact package version.",
+      "Real workspaces use a private access key.",
+      "Original generated artwork showing the release workflow.",
+      "PACKAGE PREVIEW",
+      "Check the package before an agent installs it"
+    ],
+    "ctaAboveFold": true
+  },
+  "skip": {
+    "text": "Skip to content",
+    "outline": "rgb(168, 65, 49) solid 3px",
+    "box": {
+      "w": 149.515625,
+      "h": 44.796875
+    }
+  },
+  "skipTarget": {
+    "tag": "MAIN",
+    "id": "main"
+  },
+  "demo": {
+    "url": "/demo",
+    "banner": true,
+    "packages": [],
+    "keys": [
+      "demo:team-agent-skills:v2"
+    ],
+    "h1": "Review skill releases in one place"
+  },
+  "receiptFeedback": "Recorded rcpt-007591 for atlas-api.",
+  "focus": {
+    "outline": "rgb(13, 77, 67) none 0px",
+    "outlineColor": "rgb(13, 77, 67)"
+  },
+  "resetFeedback": true,
+  "origins": [
+    "https://team-agent-skills.sociobot.in"
+  ],
+  "requestCount": 25,
+  "errors": [],
+  "failed": [],
+  "axeResults": [
+    {
+      "path": "/",
+      "violations": []
+    },
+    {
+      "path": "/demo",
+      "violations": []
+    },
+    {
+      "path": "/privacy",
+      "violations": []
+    },
+    {
+      "path": "/terms",
+      "violations": []
+    },
+    {
+      "path": "/review",
+      "violations": []
+    },
+    {
+      "path": "/404.html",
+      "violations": []
+    }
+  ],
+  "mobile": {
+    "overflow": 0,
+    "h1s": 1,
+    "minInteractive": [],
+    "moving": 0,
+    "scrollBehavior": "auto"
+  }
+}

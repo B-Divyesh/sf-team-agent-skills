@@ -1,40 +1,43 @@
-# Repair handoff — Team Skills Registry
+# Verification handoff — Team Skills Registry
 
 ## Outcome
 
-This repair resolves every release-blocking finding in
-[`verification-5.md`](verification-5.md) while preserving the existing Rust
-axum + SQLite backend, Vite TypeScript frontend, and container deployment
-class.
+**PASS — candidate `fcb5b047e2d3a1d7c41c3e860d2332c22d932f33` is ready for release.**
 
-## Repairs
+Independent verification completed on 2026-08-29 against
+`https://team-agent-skills.sociobot.in`. Live `/health` reports the exact
+candidate SHA, and local/deployed frontend hashes match. The prior release
+blockers are resolved: rate limits are independent per trusted first-hop client,
+and private Git sources use repository-bound deployment credentials without
+storing tokens.
 
-- The server rate limiter now uses the first, factory-ingress-supplied
-  `X-Forwarded-For` IP as its trusted client identity. It falls back to the
-  socket peer only for direct local runs. Each identity receives 40 requests
-  per second; excess requests return `429` and `Retry-After: 1`.
-- Added a private GitHub source flow. A deployment owner provides
-  `GIT_CREDENTIAL_<REFERENCE>` and pins it with
-  `GIT_CREDENTIAL_<REFERENCE>_REPOSITORY=https://github.com/owner/repository`.
-  An authenticated workspace binds that uppercase reference to the same
-  repository through `POST /api/git-credentials`, then publishes with
-  `git_credential_ref`. The token is used only for GitHub commit/content reads,
-  is never stored or returned, cannot be rebound to a different repository,
-  and one reference cannot be claimed by another workspace.
-- The registry publish form documents and performs that binding flow. Existing
-  signed package payloads remain byte-compatible: the credential reference is
-  workspace audit metadata, not package content.
-- Added claim-backed regressions for independent per-client rate allowances,
-  one-client exhaustion, private-source authentication, no token in SQLite,
-  cross-workspace rejection, and cross-repository rejection.
+The full report is [`.factory/verification-6.md`](verification-6.md).
 
-## Verification
+## What was verified
 
-Clean install and quality gates passed:
+- All 15 exact claim commands pass after `npm ci`.
+- `npm audit`, unit/contract tests, TypeScript, production Vite build, and all
+  19 Playwright tests pass.
+- Rust format, Clippy with warnings denied, all 11 integration tests, and the
+  optimized release build pass.
+- Fresh local and live authenticated workflows complete publish → independent
+  review → pilot → scoped install/download → receipt → full release.
+- A 41-request local and live burst confirms an allowance of 40 requests per
+  client per second, then 429 with `Retry-After: 1`; another client remains
+  unaffected.
+- Fresh live request logging is same-origin only. Security headers, routing,
+  404 behavior, immutable asset caching, persistence, and exact build identity
+  pass.
+- Fresh axe checks report zero serious/critical issues on all routes. Desktop,
+  390px mobile, keyboard-only, 200% text, and reduced-motion checks pass.
+- Mobile Lighthouse: performance 99, accessibility 100, best practices 100,
+  SEO 100; LCP 1.5 s, TBT 100 ms, CLS 0, total transfer 101 KiB.
+
+## Reproduce
 
 ```sh
 npm ci
-npm audit
+npm audit --audit-level=high
 npm test
 npm run typecheck
 npm run build
@@ -45,55 +48,16 @@ cargo test --locked
 cargo build --release --locked
 ```
 
-Results: npm audit reported 0 vulnerabilities; Playwright passed 19/19 across
-desktop and 390px mobile; Rust integration tests passed 11/11. All 15 exact
-claim commands in `.factory/claims.json` were then run independently and
-passed.
+Then run every exact `test` command in `.factory/claims.json`. Start the release
+binary with only `PORT=8080`; open `/demo` for the isolated sandbox and
+`/registry` for a private workspace.
 
-The release binary was started with a fresh SQLite path and only `PORT`,
-`DATABASE_PATH`, and a local build identity. `/health` returned the expected
-identity. `/opt/fleet/lib/verify-url.sh` passed locally in 600 ms with no
-console errors, a title, `lang=en`, one h1, main landmark, and complete image
-alt coverage. Header checks confirmed CSP, HSTS, `nosniff`, Referrer-Policy,
-Permissions-Policy, and immutable hashed-asset caching. Evidence is in
-`.factory/evidence/repair-5/verify-url/`.
+## Known gaps
 
-Playwright's installed Chromium accessibility suite passed as part of the
-19-test browser run. The standalone `@axe-core/cli` was also attempted against
-the same local server but ChromeDriver exited before a session was created in
-this worker; it did not produce findings. No Docker-compatible engine is
-available in this worker, so the image build was not repeated; Docker contract
-tests pass and the release binary was exercised directly.
+- Low: publish-form textareas use the browser's visible native focus outline
+  instead of the custom 3px focus style used by the other controls.
+- No Docker-compatible engine was present in the verifier container. The two
+  production build stages and Docker contract tests passed, and the live
+  container identifies as the exact candidate.
 
-## Deploy
-
-Deployment completed from repair commit
-`c3edb581efb087359a4729d3a0131a8018a34dd7` using:
-
-```sh
-/opt/fleet/lib/deploy-container.sh team-agent-skills /work/repo Dockerfile 8080
-```
-
-The deployment needs no Git credential variables for public repositories. To
-enable a private repository, configure a least-privilege GitHub credential and
-its canonical repository boundary as described above; do not add token values
-to the workspace, package, or repository.
-
-Live verification passed at `https://team-agent-skills.sociobot.in`:
-
-- `/health` returned the deployed commit above.
-- `verify-url.sh` passed in 629 ms with no browser console errors and the same
-  title, language, heading, landmark, and alt-text checks as local.
-- The live response sent CSP, HSTS, `nosniff`, Referrer-Policy,
-  Permissions-Policy, and immutable asset caching.
-- A 40-request burst for trusted first hop `198.18.90.1` returned 40×200; a
-  request for `198.18.90.2` returned 200; a 41st request for the first client
-  returned 429 with `Retry-After: 1`.
-
-Live browser evidence is in `.factory/evidence/repair-5/live-verify/`.
-
-## Known gap
-
-The standalone axe CLI could not start its ChromeDriver session in this
-container; the Playwright axe coverage is passing. The factory deployment
-script remains the authoritative container build and live verification step.
+No product code was changed during verification.

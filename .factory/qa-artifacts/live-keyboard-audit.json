@@ -1,0 +1,41 @@
+{
+  "sequence": [
+    {
+      "text": "Skip to content",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "▰Team SkillsRegistry",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "Demo",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "Registry",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "Review",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "Privacy",
+      "tag": "A",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    },
+    {
+      "text": "Reset demo",
+      "tag": "BUTTON",
+      "outline": "rgb(168, 65, 49) solid 3px"
+    }
+  ],
+  "resetReached": true,
+  "allFocusVisible": true
+}

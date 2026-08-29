@@ -1,0 +1,18 @@
+{
+  "workspaceCreated": true,
+  "ownerKeyShape": true,
+  "reviewerKeyShape": true,
+  "exactSource": true,
+  "approved": "Review recorded. This reviewer key cannot be used again.",
+  "pilot": "Secure commit is now in pilot.",
+  "download": {
+    "schema": "team-agent-skill/v2",
+    "id": "secure-commit",
+    "version": "1.0.0",
+    "repository": "atlas-api",
+    "digestLength": 64,
+    "signatureLength": 128
+  },
+  "receipt": "Recorded rcpt-be3a6f5f7c71d647 for atlas-api.",
+  "unexpected": []
+}

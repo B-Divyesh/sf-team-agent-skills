@@ -1,0 +1,32 @@
+{
+  "workspaceCreated": true,
+  "ownerKeyShape": true,
+  "reviewerKeyShape": true,
+  "sourceWins": {
+    "name": true,
+    "instructions": true,
+    "version": true,
+    "forgedBrowserCopyAbsent": true
+  },
+  "blockedNotice": "Release unchanged. A recorded review is required before this release.",
+  "reviewPackageHasExactSource": true,
+  "approvalNotice": "Review recorded. This reviewer key cannot be used again.",
+  "reuseNotice": "That reviewer key is invalid or already used.",
+  "pilotNotice": "Secure commit is now in pilot.",
+  "download": {
+    "schema": "team-agent-skill/v2",
+    "repository": "atlas-api",
+    "agent": "Codex",
+    "id": "secure-commit",
+    "version": "1.0.0",
+    "digestLength": 64,
+    "signatureLength": 128,
+    "sourceBlob": "6f266ba2cf2cdb0aef006510fc968ff0a89f5003"
+  },
+  "receiptNotice": "Recorded rcpt-186fddd89ef529a0 for atlas-api.",
+  "fullNotice": "Secure commit is now in all assigned repositories.",
+  "errors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+}
