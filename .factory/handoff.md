@@ -1,4 +1,35 @@
-# Repair handoff — Team Skills Registry
+# Verification handoff — FAIL (2026-08-29)
+
+## Current independent-verification result
+
+**DO NOT RELEASE candidate `ef6da21c32f2a6203ddbca00d9ac2261ac7111ee`.**
+Fresh live `/health` at `https://team-agent-skills.sociobot.in` reports the
+same SHA, so this is not a deployment-only failure.
+
+All fourteen declared claim tests, 19/19 browser tests, typecheck, build,
+Rust format/clippy/tests/release build, local and live URL verification, and
+desktop/mobile accessibility checks passed. The first screen is plain and the
+one-click sample demo works. However, two release-blocking contract defects
+remain:
+
+1. The backend rate limiter assigns every request the literal `public` key
+   rather than using the first `X-Forwarded-For` hop. Live proof: 45 requests
+   with distinct forwarded addresses yielded 40 x 200 and 5 x 429 with
+   `Retry-After: 1`; one client can therefore exhaust the allowance for every
+   team.
+2. The Git verification path accepts only **public** GitHub repositories. No
+   private Git credential/reference flow exists, which conflicts with the
+   brief's private registry and repository-access-boundary requirements.
+
+See [verification-5.md](verification-5.md) for exact evidence, all command
+results, artifacts, and required remediation. New evidence is under
+`.factory/verification-artifacts-5/`. Docker image build remains unverified
+because no Docker-compatible engine is available; its repository contract tests
+pass.
+
+---
+
+# Superseded repair handoff — Team Skills Registry
 
 ## Outcome
 
