@@ -37,7 +37,13 @@ fn start_git_verifier() -> String {
                 .next()
                 .and_then(|line| line.split_whitespace().nth(1))
                 .unwrap_or("");
-            let body = if requested_path.contains("/contents/") {
+            let private_source = requested_path.contains("private-source.json");
+            let authorised_private_source = request.lines().any(|line| {
+                line.eq_ignore_ascii_case("authorization: Bearer fixture-private-token")
+            });
+            let body = if private_source && !authorised_private_source {
+                r#"{"message":"Requires authentication"}"#.to_string()
+            } else if requested_path.contains("/contents/") {
                 let source_path = requested_path
                     .split("/contents/")
                     .nth(1)
@@ -77,8 +83,13 @@ fn start_git_verifier() -> String {
             } else {
                 r#"{"sha":"not-the-requested-commit"}"#.to_string()
             };
+            let status = if private_source && !authorised_private_source {
+                "401 Unauthorized"
+            } else {
+                "200 OK"
+            };
             let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 body.len(), body
             );
             let _ = stream.write_all(response.as_bytes());
@@ -93,6 +104,11 @@ fn start_server(database_path: &Path, port: u16) -> Child {
         .env("PORT", port.to_string())
         .env("BUILD_SHA", "repair-regression")
         .env("GIT_VERIFY_API_BASE", start_git_verifier())
+        .env("GIT_CREDENTIAL_PRIVATE_GITHUB", "fixture-private-token")
+        .env(
+            "GIT_CREDENTIAL_PRIVATE_GITHUB_REPOSITORY",
+            "https://github.com/acme/private-skills",
+        )
         .spawn()
         .expect("start server")
 }
@@ -229,6 +245,14 @@ impl Drop for Harness {
 fn package(id: &str, _name: &str, _secrets: Value) -> Value {
     json!({
         "git_url":"https://github.com/B-Divyesh/sf-team-agent-skills",
+        "git_commit":COMMIT,"source_path":format!("skills/{id}.json")
+    })
+}
+
+fn private_package(id: &str) -> Value {
+    json!({
+        "git_url":"https://github.com/acme/private-skills.git",
+        "git_credential_ref":"PRIVATE_GITHUB",
         "git_commit":COMMIT,"source_path":format!("skills/{id}.json")
     })
 }
@@ -669,36 +693,110 @@ fn claim_scoped_install_credentials() {
     );
 }
 
-#[doc = "@claim:peer-rate-limit"]
+#[doc = "@claim:trusted-client-rate-limit"]
 #[test]
-fn claim_peer_rate_limit() {
+fn claim_trusted_client_rate_limit() {
     let harness = Harness::new();
-    for request_number in 0..40 {
+    for _ in 0..40 {
         assert_eq!(
             harness
                 .client
                 .get(format!("{}/api/trust", harness.base))
-                .header("X-Forwarded-For", format!("198.51.100.{request_number}"))
+                .header("X-Forwarded-For", "198.51.100.20, 10.0.0.8")
                 .send()
                 .unwrap()
                 .status(),
             200
         );
     }
-    for request_number in 40..50 {
+    let independent_client = harness
+        .client
+        .get(format!("{}/api/trust", harness.base))
+        .header("X-Forwarded-For", "198.51.100.21, 10.0.0.8")
+        .send()
+        .unwrap();
+    assert_eq!(
+        independent_client.status(),
+        200,
+        "a separate trusted first hop retains its own allowance"
+    );
+    for _ in 0..10 {
         let denied = harness
             .client
             .get(format!("{}/api/trust", harness.base))
-            .header("X-Forwarded-For", format!("198.51.100.{request_number}"))
+            .header("X-Forwarded-For", "198.51.100.20, 10.0.0.8")
             .send()
             .unwrap();
         assert_eq!(
             denied.status(),
             429,
-            "changing an untrusted forwarded header cannot bypass the peer limit"
+            "one trusted client cannot exceed its own limit"
         );
         assert_eq!(denied.headers()["retry-after"], "1");
     }
+}
+
+#[doc = "@claim:private-git-source"]
+#[test]
+fn claim_private_git_source() {
+    let harness = Harness::new();
+    let owner = harness.session("Private source owner");
+    let other_owner = harness.session("Other workspace");
+    let unbound = harness
+        .auth(&owner, reqwest::Method::POST, "/api/skills")
+        .json(&private_package("private-source"))
+        .send()
+        .unwrap();
+    assert_eq!(
+        unbound.status(),
+        403,
+        "a reference must be workspace-bound first"
+    );
+    let binding = harness
+        .auth(&owner, reqwest::Method::POST, "/api/git-credentials")
+        .json(&json!({"reference":"PRIVATE_GITHUB","git_url":"https://github.com/acme/private-skills.git"}))
+        .send()
+        .unwrap();
+    assert_eq!(binding.status(), 201);
+    let published = harness.create(&owner, &private_package("private-source"));
+    assert_eq!(published["git_credential_ref"], "PRIVATE_GITHUB");
+    let database = std::fs::read(harness.data.path().join("registry.db")).expect("read database");
+    assert!(
+        !String::from_utf8_lossy(&database).contains("fixture-private-token"),
+        "the private Git token stays in deployment configuration, not workspace storage"
+    );
+    let cross_workspace_binding = harness
+        .auth(&other_owner, reqwest::Method::POST, "/api/git-credentials")
+        .json(&json!({"reference":"PRIVATE_GITHUB","git_url":"https://github.com/acme/private-skills"}))
+        .send()
+        .unwrap();
+    assert_eq!(
+        cross_workspace_binding.status(),
+        403,
+        "a deployment reference cannot be claimed by a second workspace"
+    );
+    let cross_workspace = harness
+        .auth(&other_owner, reqwest::Method::POST, "/api/skills")
+        .json(&private_package("private-source"))
+        .send()
+        .unwrap();
+    assert_eq!(
+        cross_workspace.status(),
+        403,
+        "a binding cannot cross workspaces"
+    );
+    let mut wrong_repository = private_package("private-source-other");
+    wrong_repository["git_url"] = json!("https://github.com/acme/other-private-skills");
+    let rejected = harness
+        .auth(&owner, reqwest::Method::POST, "/api/skills")
+        .json(&wrong_repository)
+        .send()
+        .unwrap();
+    assert_eq!(
+        rejected.status(),
+        403,
+        "a binding cannot read another repository"
+    );
 }
 
 #[test]

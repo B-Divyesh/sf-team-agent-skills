@@ -84,11 +84,18 @@
     "sandbox": "fresh server; issue one scoped credential and assert the owner key cannot install, the credential cannot administer, and wrong repository or agent is rejected"
   },
   {
-    "id": "peer-rate-limit",
-    "claim": "Public requests share a 40-request limit that forwarded headers cannot bypass.",
+    "id": "trusted-client-rate-limit",
+    "claim": "Each trusted client IP has its own 40-request limit.",
     "where": "README",
-    "test": "cargo test --locked claim_peer_rate_limit",
-    "sandbox": "fresh server; make 40 public requests, then vary X-Forwarded-For and assert every excess request returns 429 with Retry-After"
+    "test": "cargo test --locked claim_trusted_client_rate_limit",
+    "sandbox": "fresh server; exhaust one first X-Forwarded-For hop, assert a second hop succeeds, then assert the first receives 429 with Retry-After"
+  },
+  {
+    "id": "private-git-source",
+    "claim": "A workspace can verify a private GitHub package through a deployment-managed credential reference bound to one repository.",
+    "where": "README and registry publish form",
+    "test": "cargo test --locked claim_private_git_source",
+    "sandbox": "fresh server with a fixture credential; bind PRIVATE_GITHUB to one workspace repository, publish its private package, then assert cross-workspace and cross-repository reads fail and the token is absent from SQLite"
   },
   {
     "id": "managed-plan-status",

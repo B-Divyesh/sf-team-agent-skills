@@ -18,7 +18,7 @@ use std::{
     env,
     fs::OpenOptions,
     io::Write,
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     path::{Path as FilePath, PathBuf},
     sync::{Arc, Mutex},
     time::Instant,
@@ -51,6 +51,7 @@ struct Skill {
     instructions: String,
     adapters: String,
     git_url: String,
+    git_credential_ref: String,
     git_commit: String,
     source_path: String,
     source_blob_sha: String,
@@ -100,8 +101,14 @@ struct SourceSkill {
 #[derive(Deserialize)]
 struct PublishRequest {
     git_url: String,
+    git_credential_ref: Option<String>,
     git_commit: String,
     source_path: String,
+}
+#[derive(Deserialize)]
+struct GitCredentialBindingRequest {
+    reference: String,
+    git_url: String,
 }
 #[derive(Deserialize)]
 struct InstallCredentialRequest {
@@ -217,15 +224,18 @@ fn signer_fingerprint(state: &AppState) -> String {
 fn sign_bytes(state: &AppState, bytes: &[u8]) -> String {
     hex::encode(state.signer.sign(bytes).to_bytes())
 }
+struct GitSource<'a> {
+    url: &'a str,
+    commit: &'a str,
+    path: &'a str,
+    blob_sha: &'a str,
+    verified_at: &'a str,
+}
 
 fn package_bytes(
     workspace_id: &str,
     input: &SourceSkill,
-    git_url: &str,
-    git_commit: &str,
-    source_path: &str,
-    source_blob_sha: &str,
-    source_verified_at: &str,
+    source: GitSource<'_>,
 ) -> Result<Vec<u8>, serde_json::Error> {
     serde_json::to_vec(&PackageEnvelope {
         schema: "team-agent-skill-envelope/v2",
@@ -239,11 +249,11 @@ fn package_bytes(
         secrets: &input.secrets,
         instructions: &input.instructions,
         adapters: &input.adapters,
-        git_url,
-        git_commit,
-        source_path,
-        source_blob_sha,
-        source_verified_at,
+        git_url: source.url,
+        git_commit: source.commit,
+        source_path: source.path,
+        source_blob_sha: source.blob_sha,
+        source_verified_at: source.verified_at,
         repositories: &input.repositories,
         pilot_repositories: &input.pilot_repositories,
     })
@@ -253,6 +263,13 @@ fn stored_package_bytes(skill: &Skill) -> Result<Vec<u8>, serde_json::Error> {
     let secrets = json_array(&skill.secrets);
     let adapters = json_map(&skill.adapters);
     let repositories = json_array(&skill.repositories);
+    let source = GitSource {
+        url: &skill.git_url,
+        commit: &skill.git_commit,
+        path: &skill.source_path,
+        blob_sha: &skill.source_blob_sha,
+        verified_at: &skill.source_verified_at,
+    };
     serde_json::to_vec(&PackageEnvelope {
         schema: "team-agent-skill-envelope/v2",
         workspace_id: &skill.workspace_id,
@@ -265,11 +282,11 @@ fn stored_package_bytes(skill: &Skill) -> Result<Vec<u8>, serde_json::Error> {
         secrets: &secrets,
         instructions: &skill.instructions,
         adapters: &adapters,
-        git_url: &skill.git_url,
-        git_commit: &skill.git_commit,
-        source_path: &skill.source_path,
-        source_blob_sha: &skill.source_blob_sha,
-        source_verified_at: &skill.source_verified_at,
+        git_url: source.url,
+        git_commit: source.commit,
+        source_path: source.path,
+        source_blob_sha: source.blob_sha,
+        source_verified_at: source.verified_at,
         repositories: &repositories,
         pilot_repositories: &json_array(&skill.pilot_repositories),
     })
@@ -359,7 +376,7 @@ async fn create_session(State(state): State<AppState>, Json(input): Json<NewSess
     }
 }
 
-const SKILL_SELECT: &str = "SELECT workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,approved_by,approved_at,approval_id FROM skills";
+const SKILL_SELECT: &str = "SELECT workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_credential_ref,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,approved_by,approved_at,approval_id FROM skills";
 async fn list_skills(State(state): State<AppState>, headers: HeaderMap) -> Response {
     let workspace_id = match owner_workspace(&headers, &state).await {
         Ok(value) => value,
@@ -385,7 +402,7 @@ fn skill_json(skill: Skill) -> serde_json::Value {
     serde_json::json!({"id":skill.id,"name":skill.name,"version":skill.version,"summary":skill.summary,
         "targets":json_array(&skill.targets),"ring":skill.ring,"updated":skill.updated,"owner":skill.owner,
         "secrets":json_array(&skill.secrets),"instructions":skill.instructions,"adapters":json_map(&skill.adapters),
-        "git_url":skill.git_url,"git_commit":skill.git_commit,"source_verified_at":skill.source_verified_at,
+        "git_url":skill.git_url,"git_credential_ref":skill.git_credential_ref,"git_commit":skill.git_commit,"source_verified_at":skill.source_verified_at,
         "source_path":skill.source_path,"source_blob_sha":skill.source_blob_sha,
         "package_digest":skill.package_digest,"package_signature":skill.package_signature,
         "signer_public_key":skill.signer_public_key,"signed_payload":signed_payload,
@@ -409,21 +426,170 @@ fn github_repository(url: &str) -> Option<(String, String)> {
     }
     Some((parts[0].to_string(), repo.to_string()))
 }
+fn canonical_github_url(url: &str) -> Option<String> {
+    let (owner, repo) = github_repository(url)?;
+    Some(format!("https://github.com/{owner}/{repo}"))
+}
+fn configured_credential_repository(reference: &str) -> Result<String, (StatusCode, &'static str)> {
+    let configured = env::var(format!("GIT_CREDENTIAL_{reference}_REPOSITORY")).map_err(|_| {
+        (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "That deployment-managed Git credential reference has no repository boundary.",
+        )
+    })?;
+    canonical_github_url(&configured).ok_or((
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "That deployment-managed Git credential repository boundary is invalid.",
+    ))
+}
+async fn credential_for_source(
+    state: &AppState,
+    workspace_id: &str,
+    git_url: &str,
+    credential_ref: Option<&str>,
+) -> Result<Option<String>, (StatusCode, &'static str)> {
+    let Some(reference) = credential_ref.filter(|reference| !reference.is_empty()) else {
+        return Ok(None);
+    };
+    if !valid_secret_reference(reference) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Use an uppercase Git credential reference name.",
+        ));
+    }
+    let expected_url = canonical_github_url(git_url).ok_or((
+        StatusCode::BAD_REQUEST,
+        "Use a GitHub repository URL for source verification.",
+    ))?;
+    let bound_url = sqlx::query_scalar::<_, String>(
+        "SELECT git_url FROM git_credential_bindings WHERE workspace_id=? AND credential_ref=?",
+    )
+    .bind(workspace_id)
+    .bind(reference)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "The Git credential binding could not be checked.",
+        )
+    })?;
+    if bound_url.as_deref() != Some(expected_url.as_str()) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "That Git credential reference is not bound to this repository in this workspace.",
+        ));
+    }
+    if configured_credential_repository(reference)? != expected_url {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "That Git credential reference cannot read this repository.",
+        ));
+    }
+    env::var(format!("GIT_CREDENTIAL_{reference}"))
+        .map(Some)
+        .map_err(|_| {
+            (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "That deployment-managed Git credential reference is not available.",
+            )
+        })
+}
+async fn bind_git_credential(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(input): Json<GitCredentialBindingRequest>,
+) -> Response {
+    let workspace_id = match owner_workspace(&headers, &state).await {
+        Ok(value) => value,
+        Err((status, message)) => return error(status, message),
+    };
+    if !valid_secret_reference(&input.reference) {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "Use an uppercase Git credential reference name.",
+        );
+    }
+    let Some(git_url) = canonical_github_url(&input.git_url) else {
+        return error(
+            StatusCode::BAD_REQUEST,
+            "Use a GitHub repository URL when binding a Git credential reference.",
+        );
+    };
+    let configured_repository = match configured_credential_repository(&input.reference) {
+        Ok(value) => value,
+        Err((status, message)) => return error(status, message),
+    };
+    if configured_repository != git_url {
+        return error(
+            StatusCode::FORBIDDEN,
+            "That Git credential reference cannot be bound to this repository.",
+        );
+    }
+    if env::var(format!("GIT_CREDENTIAL_{}", input.reference)).is_err() {
+        return error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "That deployment-managed Git credential reference is not available.",
+        );
+    }
+    let existing_workspace = match sqlx::query_scalar::<_, String>(
+        "SELECT workspace_id FROM git_credential_bindings WHERE credential_ref=?",
+    )
+    .bind(&input.reference)
+    .fetch_optional(&state.db)
+    .await
+    {
+        Ok(value) => value,
+        Err(_) => {
+            return error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "The Git credential binding could not be checked.",
+            )
+        }
+    };
+    if existing_workspace
+        .as_deref()
+        .is_some_and(|owner| owner != workspace_id)
+    {
+        return error(
+            StatusCode::FORBIDDEN,
+            "That Git credential reference belongs to a different workspace.",
+        );
+    }
+    match sqlx::query("INSERT INTO git_credential_bindings (workspace_id,credential_ref,git_url,created_at) VALUES (?,?,?,?) ON CONFLICT(workspace_id,credential_ref) DO UPDATE SET git_url=excluded.git_url,created_at=excluded.created_at")
+        .bind(&workspace_id)
+        .bind(&input.reference)
+        .bind(&git_url)
+        .bind(Utc::now().timestamp())
+        .execute(&state.db)
+        .await
+    {
+        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"reference": input.reference, "git_url": git_url}))).into_response(),
+        Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "The Git credential reference could not be bound."),
+    }
+}
 async fn verify_git_source(
     state: &AppState,
+    workspace_id: &str,
     url: &str,
+    credential_ref: Option<&str>,
     commit: &str,
     source_path: &str,
 ) -> Result<(SourceSkill, String), (StatusCode, &'static str)> {
     let (owner, repo) = github_repository(url).ok_or((
         StatusCode::BAD_REQUEST,
-        "Use a public GitHub repository URL for source verification.",
+        "Use a GitHub repository URL for source verification.",
     ))?;
+    let credential = credential_for_source(state, workspace_id, url, credential_ref).await?;
     let endpoint = format!(
         "{}/repos/{owner}/{repo}/commits/{commit}",
         state.git_api_base.trim_end_matches('/')
     );
-    let response = state.http.get(endpoint).send().await.map_err(|_| {
+    let mut commit_request = state.http.get(endpoint);
+    if let Some(token) = credential.as_deref() {
+        commit_request = commit_request.bearer_auth(token);
+    }
+    let response = commit_request.send().await.map_err(|_| {
         (
             StatusCode::BAD_GATEWAY,
             "GitHub source verification is unavailable. Try again.",
@@ -466,7 +632,11 @@ async fn verify_git_source(
         "{}/repos/{owner}/{repo}/contents/{source_path}?ref={commit}",
         state.git_api_base.trim_end_matches('/')
     );
-    let content_response = state.http.get(content_endpoint).send().await.map_err(|_| {
+    let mut content_request = state.http.get(content_endpoint);
+    if let Some(token) = credential.as_deref() {
+        content_request = content_request.bearer_auth(token);
+    }
+    let content_response = content_request.send().await.map_err(|_| {
         (
             StatusCode::BAD_GATEWAY,
             "GitHub package verification is unavailable. Try again.",
@@ -595,7 +765,9 @@ async fn create_skill(
     }
     let (input, source_blob_sha) = match verify_git_source(
         &state,
+        &workspace_id,
         &request.git_url,
+        request.git_credential_ref.as_deref(),
         &request.git_commit,
         &request.source_path,
     )
@@ -608,11 +780,13 @@ async fn create_skill(
     let bytes = match package_bytes(
         &workspace_id,
         &input,
-        &request.git_url,
-        &request.git_commit,
-        &request.source_path,
-        &source_blob_sha,
-        &source_verified_at,
+        GitSource {
+            url: &request.git_url,
+            commit: &request.git_commit,
+            path: &request.source_path,
+            blob_sha: &source_blob_sha,
+            verified_at: &source_verified_at,
+        },
     ) {
         Ok(value) => value,
         Err(_) => return error(StatusCode::BAD_REQUEST, "The package could not be encoded."),
@@ -628,15 +802,15 @@ async fn create_skill(
     let adapters = serde_json::to_string(&input.adapters).unwrap_or_default();
     let repositories = serde_json::to_string(&input.repositories).unwrap_or_default();
     let pilot_repositories = serde_json::to_string(&input.pilot_repositories).unwrap_or_default();
-    let result = sqlx::query("INSERT INTO skills (workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,reviewer_hash,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    let result = sqlx::query("INSERT INTO skills (workspace_id,id,name,version,summary,targets,ring,updated,owner,secrets,instructions,adapters,git_url,git_credential_ref,git_commit,source_path,source_blob_sha,source_verified_at,package_digest,package_signature,signer_public_key,repositories,pilot_repositories,reviewer_hash,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(&workspace_id).bind(&input.id).bind(&input.name).bind(&input.version).bind(&input.summary).bind(&targets)
         .bind("draft").bind(&updated).bind(&input.owner).bind(&secrets).bind(&input.instructions).bind(&adapters)
-        .bind(&request.git_url).bind(&request.git_commit).bind(&request.source_path).bind(&source_blob_sha).bind(&source_verified_at).bind(&digest).bind(&signature)
+        .bind(&request.git_url).bind(request.git_credential_ref.as_deref().unwrap_or("")).bind(&request.git_commit).bind(&request.source_path).bind(&source_blob_sha).bind(&source_verified_at).bind(&digest).bind(&signature)
         .bind(&public_key).bind(&repositories).bind(&pilot_repositories).bind(hash(&reviewer_key)).bind(Utc::now().timestamp()).execute(&state.db).await;
     match result {
         Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"id":input.id,"name":input.name,"version":input.version,
             "summary":input.summary,"targets":input.targets,"ring":"draft","updated":updated,"owner":input.owner,
-            "secrets":input.secrets,"instructions":input.instructions,"adapters":input.adapters,"git_url":request.git_url,
+            "secrets":input.secrets,"instructions":input.instructions,"adapters":input.adapters,"git_url":request.git_url,"git_credential_ref":request.git_credential_ref,
             "git_commit":request.git_commit,"source_path":request.source_path,"source_blob_sha":source_blob_sha,"source_verified_at":source_verified_at,"package_digest":digest,
             "package_signature":signature,"signer_public_key":public_key,"signed_payload":signed_payload,
             "repositories":input.repositories,"pilot_repositories":input.pilot_repositories,
@@ -1002,21 +1176,33 @@ async fn index() -> Response {
 }
 async fn rate_limit(
     State(state): State<AppState>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
     if request.uri().path() == "/health" {
         return next.run(request).await;
     }
-    // Forwarded headers are caller input at this service boundary, and Azure
-    // may rotate its ingress peer between connections. Until the edge supplies
-    // an authenticated client identity, use one public bucket: no header or
-    // proxy-hop change can manufacture a fresh allowance.
-    let _peer = request.extensions().get::<ConnectInfo<SocketAddr>>();
-    let ip = "public".to_string();
+    // Factory ingress overwrites X-Forwarded-For before it reaches this
+    // container. Its first hop is the trusted client identity. Direct local
+    // runs retain a peer-address fallback for a stable per-client bucket.
+    let ip = headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .and_then(|value| value.parse::<IpAddr>().ok())
+        .map(|value| format!("forwarded:{value}"))
+        .or_else(|| {
+            request
+                .extensions()
+                .get::<ConnectInfo<SocketAddr>>()
+                .map(|peer| format!("peer:{}", peer.0.ip()))
+        })
+        .unwrap_or_else(|| "unknown".to_string());
     let denied = {
         let mut map = state.limits.lock().expect("rate limit lock");
+        map.retain(|_, (started, _)| started.elapsed().as_secs() < 2);
         let entry = map.entry(ip).or_insert((Instant::now(), 0));
         if entry.0.elapsed().as_secs() >= 1 {
             *entry = (Instant::now(), 0);
@@ -1149,10 +1335,13 @@ async fn initialise(db: &SqlitePool) -> Result<(), sqlx::Error> {
         "ALTER TABLE skills ADD COLUMN source_path TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE skills ADD COLUMN source_blob_sha TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE skills ADD COLUMN pilot_repositories TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE skills ADD COLUMN git_credential_ref TEXT NOT NULL DEFAULT ''",
     ] {
         add_column(db, statement).await;
     }
     sqlx::query("CREATE TABLE IF NOT EXISTS install_credentials (workspace_id TEXT NOT NULL,skill_id TEXT NOT NULL,repository TEXT NOT NULL,agent TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL)").execute(db).await?;
+    sqlx::query("CREATE TABLE IF NOT EXISTS git_credential_bindings (workspace_id TEXT NOT NULL,credential_ref TEXT NOT NULL,git_url TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(workspace_id,credential_ref))").execute(db).await?;
+    sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS git_credential_reference_unique ON git_credential_bindings (credential_ref)").execute(db).await?;
     Ok(())
 }
 fn signing_key(path: &FilePath) -> Result<(SigningKey, bool), String> {
@@ -1234,6 +1423,7 @@ async fn main() {
         .route("/health", get(health))
         .route("/api/trust", get(trust))
         .route("/api/session", post(create_session))
+        .route("/api/git-credentials", post(bind_git_credential))
         .route("/api/skills", get(list_skills).post(create_skill))
         .route("/api/review", get(review_package))
         .route("/api/review/approve", post(approve_review))

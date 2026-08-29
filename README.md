@@ -25,10 +25,16 @@ Open `/registry` and create a workspace. Save its owner key in a password
 manager. Publishing creates a separate reviewer key for that one package.
 The reviewer opens `/review` with only that key. Approval consumes the key.
 
-The source verifier accepts public GitHub repository URLs. It confirms the
-exact commit, reads the named JSON file at that commit, and signs the returned
-blob identifier. Browser fields cannot replace committed instructions or
-adapters. Set `GIT_VERIFY_API_BASE` only when running a compatible local
+The source verifier accepts GitHub repository URLs. Public repositories need
+no extra configuration. For a private repository, the deployment owner sets a
+credential such as `GIT_CREDENTIAL_PRIVATE_GITHUB` and pins it with
+`GIT_CREDENTIAL_PRIVATE_GITHUB_REPOSITORY=https://github.com/acme/private-skills`.
+The workspace binds the reference `PRIVATE_GITHUB` to that exact repository
+before publishing. The server never stores or returns the credential value, and
+the reference cannot be used by another workspace or to read another repository. It confirms
+the exact commit, reads the named JSON file at that commit, and signs the
+returned blob identifier. Browser fields cannot replace committed instructions
+or adapters. Set `GIT_VERIFY_API_BASE` only when running a compatible local
 verifier fixture.
 
 ## Try the sandbox
@@ -47,8 +53,9 @@ repository assignments, and receipts. Demo storage uses
   and agent. That credential cannot list, publish, review, or release packages.
 - `/api/trust` exposes the signer key and fingerprint for consumer pinning.
 - Workspace identifiers are isolated, so teams may use the same package id.
-- Public API requests share a 40-request limit. It does not trust
-  `X-Forwarded-For` values.
+- Each trusted client IP has a 40-request limit. Factory ingress overwrites
+  `X-Forwarded-For`, and the service uses its first hop; local runs fall back
+  to the socket peer.
 
 Every statement above has an exact test in [.factory/claims.json](.factory/claims.json).
 
@@ -71,9 +78,13 @@ cargo build --release --locked
 
 Create a workspace with `POST /api/session`. Send its owner key as
 `Authorization: Bearer <key>` to registry endpoints. Publish at
-`POST /api/skills` with `git_url`, `git_commit`, and `source_path`; the source
-file follows [`examples/skill-package.json`](examples/skill-package.json). The
-response contains the package's one-time reviewer key.
+`POST /api/skills` with `git_url`, `git_commit`, `source_path`, and optionally
+`git_credential_ref`; the source file follows
+[`examples/skill-package.json`](examples/skill-package.json). Before private
+publishes, the owner binds the deployment-managed, repository-pinned reference with
+`POST /api/git-credentials` using `{ "reference": "PRIVATE_GITHUB",
+"git_url": "https://github.com/acme/private-skills" }`. The response contains
+the package's one-time reviewer key.
 
 A reviewer sends that key to `GET /api/review`, then approves with
 `POST /api/review/approve`. The owner releases it with
