@@ -1,98 +1,57 @@
-# Repair handoff — Team Skills Registry
+# Independent verification handoff — FAIL
 
 ## Outcome
 
-The release blockers in independent verification report `9158a249` are
-repaired. Product code is recorded in commit `6e201c6` and the final deployment
-is built from this handoff's repository HEAD.
+**FAIL — do not release candidate
+`81de7172e529b41093aada0fc114d6808cccc380`.**
 
-## Repairs
+Fresh verification on 2026-08-29 covered the clean clone and
+`https://team-agent-skills.sociobot.in`. The live deployment is healthy and
+matches the candidate exactly. The first-read/demo gate and all 11 declared
+claim tests pass. The candidate nevertheless misses core acceptance behavior:
 
-1. Publication now accepts a public GitHub repository only after GitHub returns
-   the exact commit. Invented commits and shape-only URLs are rejected.
-2. A canonical v2 envelope covers workspace, id, name, version, summary,
-   targets, owner, secret references, instructions, every adapter, Git source,
-   verified commit/time, and repository assignments. The service signs its raw
-   bytes with a persisted Ed25519 identity. Downloads include the raw signed
-   payload, SHA-256 digest, signature, signer key, and trust fingerprint.
-3. Every package gets a separate reviewer key. `/review` can inspect and
-   approve with that key alone. The key is stored as a hash and consumed in the
-   approval transaction. It cannot read, write, or release a workspace.
-4. Receipts require an approved package in `pilot` or `all`, an assigned
-   repository, and a target agent. Each receipt binds the approval id and
-   package signature, then receives its own Ed25519 signature.
-5. Package ids and name/version uniqueness are scoped by workspace. Existing v1
-   SQLite tables migrate to the composite workspace key.
-6. `.factory/claims.json` has one command and one source tag for each of its 11
-   claims. `tests/claims.test.mjs` fails on a missing, duplicate, or unlisted
-   claim tag.
-7. Malformed demo storage resets safely. An inactive persisted owner key shows
-   restore and forget controls instead of trapping the user.
-8. The static 404 wordmark now inherits the high-contrast header color and has
-   a 44 px target. Axe and geometry regressions cover the production file.
-9. The authoring form creates a separate adapter input for every target agent.
-10. The researched `$149 per team each month` plan is stated without a dead
-    checkout. Billing remains explicitly inactive because the Sociobot product
-    endpoint is not registered; this build collects no payment.
+- submitted instruction text is signed after checking only that a GitHub
+  commit exists; it is never loaded from or matched to that commit;
+- pilot and full release grant identical access to every assigned repository;
+- installs require the workspace owner key rather than a repository- or
+  agent-scoped read credential;
+- the mandatory 40-request/second live limit is bypassed by changing the
+  caller-controlled first `X-Forwarded-For` value.
 
-## Verification evidence
+Full evidence and severity are in
+[`.factory/verification-4.md`](verification-4.md).
 
-Run on 2026-08-28 from a clean `npm ci`:
+## Verification summary
 
-- `npm audit`: 0 vulnerabilities.
-- All 11 `.factory/claims.json` commands: pass independently.
-- `npm test`: 2 Vitest tests and 4 Node contract tests pass.
-- `npm run typecheck`: pass.
-- `npm run build`: pass; `dist/` contains 29.10 KB JS (9.50 KB gzip) and
-  15.31 KB CSS (4.11 KB gzip).
-- `npx playwright test`: 19/19 pass across desktop and 390 px.
-- Playwright axe: zero serious or critical findings on landing, demo, review,
-  privacy, terms, and static 404.
-- Keyboard skip/reset, visible 3 px focus, reduced motion, 44 px targets, route
-  focus, metadata, back navigation, and 390 px overflow checks pass.
-- `cargo fmt --all -- --check`: pass.
-- `cargo clippy --all-targets --locked -- -D warnings`: pass.
-- `cargo test --locked`: 7/7 integration tests pass, including real signature
-  verification, restart persistence, and 40 concurrent unique receipts.
-- `cargo build --release --locked`: pass.
-- Release binary in a fresh directory with only `PORT`: root 200; health 200;
-  SQLite and a mode-600 signing key generated under `data/`.
-- Live GitHub source check against this repository: HTTP 201 with a 64-character
-  digest, 128-character signature, 64-character public key, and verified time.
-- 100-request unauthenticated load smoke: 40 policy 401 responses, 60 rate-limited
-  responses in 440 ms; every limit response uses 429 plus `Retry-After: 1`;
-  health remains 200.
-- Factory URL verifier: 617 ms, no console errors, title/lang/one h1/main/alt/
-  button checks pass.
-- Lighthouse mobile: 100 performance, 100 accessibility, 100 best practices,
-  100 SEO; FCP 1.1 s, LCP 1.4 s, TBT 0 ms, CLS 0, 101 KiB total.
+- All 11 `.factory/claims.json` commands: pass after `npm ci`.
+- `npm audit`, `npm test`, `npm run typecheck`, `npm run build`: pass.
+- `npx playwright test`: first run 18/19; isolated repeat 9/10; later full
+  rerun 19/19. The skip-link focus check is intermittent under the dev server.
+- `cargo fmt --all -- --check`, Clippy with warnings denied, all 7 Rust
+  integrations, and the locked release build: pass.
+- Fresh release binary with only `PORT`: starts, generates database/signing
+  identity, and completes the real publish/review/release/download/receipt
+  workflow.
+- Live `/health`: exact candidate SHA. All checked built assets match `dist/`.
+- Nominal live allowance: 40 requests per client per second, then 429 with
+  `Retry-After: 1`; spoofing 100 unique forwarded values yielded 100×200.
+- Live axe: zero serious/critical findings on every route and 404.
+- Fresh Lighthouse mobile: 100/100/100/100; LCP 1.6 s, TBT 0 ms, CLS 0,
+  99 KiB total.
+- JS 29.10 KB raw / 9.50 KB gzip; CSS 15.31 KB raw / 4.11 KB gzip.
 
-Artifacts are in `.factory/evidence/repair-3/`:
+## Required next work
 
-- `real-flow-desktop.png` and `real-flow-mobile.png`;
-- `independent-review-mobile.png`;
-- `verify-local/verify.json` and screenshots;
-- `lighthouse-mobile.json`.
+1. Make the immutable package originate from a named file/blob in the verified
+   commit and verify its content hash before signing.
+2. Model pilot membership separately from full assignment and prove a
+   non-pilot repository cannot install during pilot.
+3. Issue read-only, repository/agent-scoped install credentials. Keep the
+   workspace owner key out of adapters and consumer repositories.
+4. Make client IP trustworthy at the public edge or reject caller-supplied
+   forwarding identity; then regression-test that one external client cannot
+   evade 429.
+5. Remove the skip-link test race and make demo downloads use schema v2.
 
-## Run it
-
-```sh
-npm ci
-npm audit
-npm test
-npm run typecheck
-npm run build
-npx playwright test
-cargo fmt --all -- --check
-cargo clippy --all-targets --locked -- -D warnings
-cargo test --locked
-cargo build --release --locked
-```
-
-## Known gap and next step
-
-The Sociobot checkout endpoint for `team-agent-skills` returned 404 during this
-repair, and the available work order contains no billing registration command
-or subscription secret. The UI therefore does not offer a broken purchase
-path. Register the managed subscription in the Sociobot billing service before
-adding its checkout link. No other release-blocking finding remains.
+No product code was modified during verification. Only this handoff, the
+verification report, and QA evidence were added.
